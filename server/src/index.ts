@@ -75,7 +75,9 @@ app.use('/api/nazirah', nazirahRouter);
 
 // ── Production static serving ──────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
-  const clientDist = path.join(__dirname, '../../client/dist');
+  // TypeScript compiles src/ into dist/server/src/, so __dirname is
+  // <project-root>/server/dist/server/src — go up 4 levels to reach project root.
+  const clientDist = path.join(__dirname, '../../../../client/dist');
   app.use(express.static(clientDist));
   app.get('*', (_req: Request, res: Response) => {
     res.sendFile(path.join(clientDist, 'index.html'));
