@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme tokens ────────────────────────────────────────────────
+   All colours are defined here as CSS custom properties.
+   Components reference var(--c-*) so a single data-theme attribute
+   on <html> swaps the full palette instantly.
+   ─────────────────────────────────────────────────────────────── */
+:root {
+  /* Light (cream / logo) theme — the DEFAULT */
+  --c-bg:           #FAF7F0;
+  --c-bg-card:      #FFFFFF;
+  --c-bg-nav:       #FFFFFF;
+  --c-bg-subtle:    rgba(15,76,58,0.05);
+  --c-border:       rgba(15,76,58,0.10);
+  --c-border-soft:  rgba(15,76,58,0.18);
+  --c-text:         #0F4C3A;
+  --c-text-muted:   rgba(15,76,58,0.60);
+  --c-text-faint:   rgba(15,76,58,0.35);
+  --c-gold:         #B8862A;
+  --c-gold-bg:      rgba(184,134,42,0.12);
+  --c-green-dark:   #0F4C3A;
+  --c-red:          #C53030;
+  --c-red-bg:       rgba(197,48,48,0.08);
+}
+
+html[data-theme="dark"] {
+  --c-bg:           #0d0d0d;
+  --c-bg-card:      #111111;
+  --c-bg-nav:       #111111;
+  --c-bg-subtle:    rgba(255,255,255,0.05);
+  --c-border:       rgba(255,255,255,0.06);
+  --c-border-soft:  rgba(255,255,255,0.10);
+  --c-text:         #FAF7F0;
+  --c-text-muted:   rgba(250,247,240,0.45);
+  --c-text-faint:   rgba(250,247,240,0.25);
+  --c-gold:         #C49A2A;
+  --c-gold-bg:      rgba(196,154,42,0.12);
+  --c-green-dark:   #0F4C3A;
+  --c-red:          #E24B4A;
+  --c-red-bg:       rgba(226,75,74,0.08);
+}
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    overscroll-behavior: none;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--c-bg);
+    color: var(--c-text);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
+
+@layer utilities {
+  .font-amiri { font-family: 'Amiri', serif; }
+  .font-inter  { font-family: 'Inter', sans-serif; }
+
+  /* Safe area padding helpers */
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+
+  /* Bottom nav heights */
+  .h-nav   { height: 56px; }
+  .h-ctab  { height: 48px; }
+
+  /* Combined bottom padding for class screens (nav + class tab) */
+  .pb-class-layout { padding-bottom: calc(56px + 48px + env(safe-area-inset-bottom)); }
+  .pb-layout       { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
+
+  /* Theme-aware utility classes */
+  .bg-theme        { background-color: var(--c-bg); }
+  .bg-theme-card   { background-color: var(--c-bg-card); }
+  .bg-theme-nav    { background-color: var(--c-bg-nav); }
+  .text-theme      { color: var(--c-text); }
+  .text-muted      { color: var(--c-text-muted); }
+  .text-faint      { color: var(--c-text-faint); }
+  .text-gold       { color: var(--c-gold); }
+  .border-theme    { border-color: var(--c-border); }
+}
+
+/* Scrollable containers */
+.scroll-container {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Arabic text direction */
+[lang="ar"], .arabic {
+  direction: rtl;
+  font-family: 'Amiri', serif;
+}
+
+/* Bottom sheet backdrop */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 50;
+  backdrop-filter: blur(2px);
+}
+
+html[data-theme="light"] .sheet-backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* Fade-in-up animation for splash / welcome */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.55s ease both;
+}
+
+.animate-fade-in-up-delay {
+  animation: fadeInUp 0.55s ease 0.18s both;
+}
+
+.animate-fade-in-up-delay2 {
+  animation: fadeInUp 0.55s ease 0.32s both;
+}
+
+/* ── Confetti particle animation ─────────────────────────────── */
+@keyframes confettiFall {
+  0%   { transform: translateY(0) rotate(0deg) scale(1);    opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(var(--fall-y)) rotate(var(--spin)) scale(0.5); opacity: 0; }
+}
+
+@keyframes confettiPop {
+  0%   { transform: translate(0,0) rotate(0deg) scale(0); opacity: 1; }
+  20%  { transform: translate(var(--dx),var(--dy)) rotate(var(--spin)) scale(1.1); opacity: 1; }
+  100% { transform: translate(calc(var(--dx)*2.5), calc(var(--dy)*2.5 + 120px)) rotate(calc(var(--spin)*3)) scale(0.3); opacity: 0; }
+}
+
+.confetti-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  border-radius: 2px;
+  animation: confettiPop var(--duration) var(--delay) ease-out forwards;
+}

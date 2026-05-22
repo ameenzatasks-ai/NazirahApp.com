@@ -1,0 +1,39 @@
+# ── Dependencies ─────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ── Build output ──────────────────────────────────────────────
+dist/
+build/
+client/dist/
+server/dist/
+
+# ── Database (local data — never commit) ─────────────────────
+*.db
+*.db-shm
+*.db-wal
+
+# ── Environment & secrets ─────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── OS / editor junk ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── TypeScript cache ─────────────────────────────────────────
+*.tsbuildinfo
+
+# ── Vite / PWA generated icons (reproducible, not source) ────
+client/public/icons/
