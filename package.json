@@ -1,0 +1,20 @@
+{
+  "name": "nazirah",
+  "version": "2.0.0",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
+    "build": "npm run build --workspace=server && npm run build --workspace=client",
+    "start": "npm run start --workspace=server",
+    "generate-icons": "node scripts/generate-icons.mjs",
+    "postinstall": "node scripts/generate-icons.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "pngjs": "^7.0.0"
+  }
+}
