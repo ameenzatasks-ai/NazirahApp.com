@@ -29,7 +29,7 @@ export default function SplashScreen() {
       } else if (!result.user.role) {
         navigate('/onboarding', { replace: true });
       } else {
-        navigate('/classes', { replace: true });
+        navigate('/hub', { replace: true });
       }
     })();
 

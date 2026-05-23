@@ -14,6 +14,7 @@ const SplashScreen     = lazy(() => import('./pages/SplashScreen'));
 const WelcomeScreen    = lazy(() => import('./pages/WelcomeScreen'));
 const AuthCallback     = lazy(() => import('./pages/AuthCallback'));
 const OnboardingScreen = lazy(() => import('./pages/OnboardingScreen'));
+const RoutingHub       = lazy(() => import('./pages/RoutingHub'));
 const ClassesList      = lazy(() => import('./pages/ClassesList'));
 const ProfileScreen    = lazy(() => import('./pages/ProfileScreen'));
 const ClassShell       = lazy(() => import('./pages/class/ClassShell'));
@@ -23,6 +24,7 @@ const AuditPage           = lazy(() => import('./pages/AuditPage'));
 const NazirahLogsList      = lazy(() => import('./pages/class/NazirahLogsList'));
 const NazirahLogDetailPage = lazy(() => import('./pages/class/NazirahLogDetail'));
 const NazirahTrack         = lazy(() => import('./pages/NazirahTrack'));
+const HifzHome             = lazy(() => import('./pages/hifz/HifzHome'));
 
 /* ── Spinner fallback ────────────────────────────────────── */
 function PageFallback() {
@@ -64,7 +66,7 @@ function PublicLayout() {
   const { user, loading } = useAuth();
 
   if (loading) return <PageFallback />;
-  if (user?.role) return <Navigate to="/classes" replace />;
+  if (user?.role) return <Navigate to="/hub" replace />;
 
   return <Outlet />;
 }
@@ -111,7 +113,12 @@ function AppRoutes() {
 
         {/* Protected routes */}
         <Route element={<ProtectedLayout />}>
-          <Route path="/dashboard" element={<Navigate to="/classes" replace />} />
+          {/* Routing hub — post-login home */}
+          <Route path="/hub"       element={<RoutingHub />} />
+          <Route path="/dashboard" element={<Navigate to="/hub" replace />} />
+
+          {/* Hifz module */}
+          <Route path="/hifz" element={<HifzHome />} />
 
           {/* Standalone Nazirah tracker */}
           <Route path="/nazirah" element={<NazirahTrack />} />
