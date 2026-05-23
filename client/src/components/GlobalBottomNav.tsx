@@ -1,44 +1,14 @@
-/**
- * GlobalBottomNav — persistent 4-tab navigation bar.
- *
- *   Home      → /hub        (Routing Hub)
- *   Nazira    → /classes    (Nazira class system)
- *   Hifz      → /hifz       (Hifz memorisation module)
- *   Profile   → /profile    (User profile)
- */
 import { NavLink } from 'react-router-dom';
-import { LayoutGrid, BookOpen, GraduationCap } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-
-interface TabProps {
-  to: string;
-  label: string;
-  icon: React.ReactNode;
-  /** Pass a render-prop version for the profile tab that needs isActive */
-  children?: (isActive: boolean) => React.ReactNode;
-}
-
-function Tab({ to, label, icon }: TabProps) {
-  return (
-    <NavLink
-      to={to}
-      className="flex-1 flex flex-col items-center justify-center gap-[3px] min-h-[44px] transition-colors"
-      style={({ isActive }) => ({
-        color: isActive ? 'var(--c-gold)' : 'var(--c-text-faint)',
-      })}
-    >
-      {icon}
-      <span className="text-[10px] font-medium">{label}</span>
-    </NavLink>
-  );
-}
 
 export default function GlobalBottomNav() {
   const { user } = useAuth();
   const initial = user?.name?.[0]?.toUpperCase() ?? '?';
+  // Truncate display name to ~12 chars so it fits the tab
   const displayName = user?.name
-    ? (user.name.split(' ')[0].length > 7
-        ? user.name.split(' ')[0].slice(0, 6) + '…'
+    ? (user.name.split(' ')[0].length > 11
+        ? user.name.split(' ')[0].slice(0, 10) + '…'
         : user.name.split(' ')[0])
     : 'Profile';
 
@@ -53,31 +23,22 @@ export default function GlobalBottomNav() {
       }}
       aria-label="Main navigation"
     >
-      {/* Home */}
-      <Tab
-        to="/hub"
-        label="Home"
-        icon={<LayoutGrid className="w-5 h-5" strokeWidth={2} />}
-      />
-
-      {/* Nazira */}
-      <Tab
+      {/* Classes tab */}
+      <NavLink
         to="/classes"
-        label="Nazira"
-        icon={<BookOpen className="w-5 h-5" strokeWidth={2} />}
-      />
+        className="flex-1 flex flex-col items-center justify-center gap-1 min-h-[44px] transition-colors"
+        style={({ isActive }) => ({
+          color: isActive ? 'var(--c-gold)' : 'var(--c-text-faint)',
+        })}
+      >
+        <BookOpen className="w-5 h-5" strokeWidth={2} />
+        <span className="text-[10px] font-medium">Classes</span>
+      </NavLink>
 
-      {/* Hifz */}
-      <Tab
-        to="/hifz"
-        label="Hifz"
-        icon={<GraduationCap className="w-5 h-5" strokeWidth={2} />}
-      />
-
-      {/* Profile — custom render for avatar */}
+      {/* Profile tab — shows avatar circle + first name */}
       <NavLink
         to="/profile"
-        className="flex-1 flex flex-col items-center justify-center gap-[3px] min-h-[44px] transition-colors"
+        className="flex-1 flex flex-col items-center justify-center gap-1 min-h-[44px] transition-colors"
         style={({ isActive }) => ({
           color: isActive ? 'var(--c-gold)' : 'var(--c-text-faint)',
         })}
@@ -88,16 +49,14 @@ export default function GlobalBottomNav() {
               <img
                 src={user.avatar_url}
                 alt={user.name}
-                className="w-5 h-5 rounded-full object-cover"
+                className="w-6 h-6 rounded-full object-cover"
                 style={{
-                  border: isActive
-                    ? '2px solid var(--c-gold)'
-                    : '2px solid var(--c-border)',
+                  border: isActive ? '2px solid var(--c-gold)' : '2px solid var(--c-border)',
                 }}
               />
             ) : (
               <div
-                className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
                 style={{
                   backgroundColor: isActive ? 'var(--c-gold)' : 'var(--c-bg-subtle)',
                   color: isActive ? '#0d0d0d' : 'var(--c-text-muted)',
