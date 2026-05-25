@@ -11,12 +11,15 @@ export default function OnboardingScreen() {
   const [loading, setLoading] = useState<'student' | 'ustadh' | null>(null);
 
   const firstName = user?.name?.split(' ')[0] ?? 'there';
+  const initial   = user?.name?.[0]?.toUpperCase() ?? '?';
 
   async function pickRole(role: 'student' | 'ustadh') {
     setLoading(role);
     try {
       const { user: updated } = await authApi.setRole(role);
       setUser(updated);
+      // Guarantee the tour shows immediately on first entry for both roles
+      try { localStorage.removeItem('nazirah-tour-seen'); } catch {}
       navigate('/classes', { replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to set role');
@@ -30,14 +33,33 @@ export default function OnboardingScreen() {
       style={{ backgroundColor: '#FAF7F0' }}
     >
       <div className="text-center mb-10 animate-fade-in-up">
-        {/* Gold Arabic نَظِيرَة */}
+        {/* Gold Arabic — same as splash screen */}
         <p
-          className="font-amiri leading-none mb-3"
+          className="font-amiri leading-none mb-4"
           style={{ color: '#B8862A', fontSize: 56 }}
           lang="ar"
         >
-          نَظِيرَة
+          ناظره
         </p>
+
+        {/* Google profile picture */}
+        <div className="flex justify-center mb-4">
+          {user?.avatar_url ? (
+            <img
+              src={user.avatar_url}
+              alt={user?.name ?? 'Profile'}
+              className="w-16 h-16 rounded-full object-cover"
+              style={{ border: '2px solid rgba(184,134,42,0.35)' }}
+            />
+          ) : (
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold"
+              style={{ backgroundColor: 'rgba(184,134,42,0.12)', color: '#B8862A', border: '2px solid rgba(184,134,42,0.35)' }}
+            >
+              {initial}
+            </div>
+          )}
+        </div>
 
         {/* Gold divider */}
         <div className="flex items-center gap-2 justify-center mb-4">

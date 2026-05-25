@@ -12,7 +12,7 @@ export default class ErrorBoundary extends React.Component<
     return (
       <div className="min-h-screen bg-brand-green flex items-center justify-center p-6 text-center">
         <div>
-          <p className="font-amiri text-3xl text-brand-gold mb-2">نَظِيرَة</p>
+          <p className="font-amiri text-3xl text-brand-gold mb-2">ناظره</p>
           <h2 className="text-lg font-semibold text-brand-cream mb-2">Something went wrong</h2>
           <p className="text-sm text-white/60 mb-4">Please refresh the page to continue.</p>
           <button

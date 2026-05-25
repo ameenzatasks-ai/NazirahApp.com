@@ -42,7 +42,7 @@ export default function AuthCallback() {
           style={{ color: '#B8862A', fontSize: 48 }}
           lang="ar"
         >
-          نَظِيرَة
+          ناظره
         </p>
         <Spinner size={28} color="#B8862A" />
         <p
