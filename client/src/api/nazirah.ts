@@ -19,8 +19,17 @@ export interface NazirahLogDetail {
   grouped: Record<PageStatus, number[]>;
 }
 
+export interface NazirahLogPreview {
+  pageCount: number;
+  colorCounts: Record<'BLACK' | 'RED' | 'AMBER' | 'GREEN' | 'GOLD' | 'YELLOW', number>;
+}
+
 export const nazirahApi = {
-  /** Student: save current page statuses as a Nazira log for the given date. */
+  /** Student: preview which pages fall in the 7-day window for the given date. */
+  previewLog: (date: string) =>
+    api.get<NazirahLogPreview>(`/nazirah/log/preview?date=${date}`),
+
+  /** Student: save weekly page statuses as a Nazira log for the given date. */
   saveLog: (date: string) =>
     api.post<NazirahLogSummary>('/nazirah/log', { date }),
 

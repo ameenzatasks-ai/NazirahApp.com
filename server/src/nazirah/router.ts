@@ -57,11 +57,20 @@ function formatLogDetail(log: LogRow, pages: PageRow[]) {
 
 // ─── Prepared statements (module-level so they compile once) ───────────────
 
-const stmtGetCurrentPages = db.prepare(`
-  SELECT page_number, status
-  FROM student_page_status
-  WHERE student_id = ? AND variant = 'NEW_MADANI'
-  ORDER BY page_number ASC
+/** Pages the student changed in the 7-day window ending on logDate (inclusive). */
+const stmtGetWeeklyPages = db.prepare(`
+  SELECT DISTINCT sh.page_number, sps.status
+  FROM status_history sh
+  JOIN student_page_status sps
+    ON  sps.student_id  = sh.student_id
+    AND sps.page_number = sh.page_number
+    AND sps.variant     = sh.variant
+  WHERE sh.student_id = ?
+    AND sh.variant    = 'NEW_MADANI'
+    AND date(sh.changed_at) >= date(?, '-6 days')
+    AND date(sh.changed_at) <= date(?)
+    AND sps.status IS NOT NULL
+  ORDER BY sh.page_number ASC
 `);
 
 const stmtDeleteLog = db.prepare(`
@@ -122,6 +131,26 @@ const saveSnapshot = db.transaction((studentId: number, logDate: string, pages: 
   return logId;
 });
 
+// ── GET /log/preview — preview pages that would be logged for a date ────────
+router.get('/log/preview', authenticate, (req: AuthRequest, res: Response): void => {
+  const user = req.user!;
+  if (user.role !== 'student') {
+    res.status(403).json({ error: 'Students only' }); return;
+  }
+
+  const date = String(req.query.date ?? '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    res.status(400).json({ error: 'date query param must be YYYY-MM-DD' }); return;
+  }
+
+  const pages = stmtGetWeeklyPages.all(user.id, date, date) as PageRow[];
+
+  const colorCounts = { BLACK: 0, RED: 0, AMBER: 0, GREEN: 0, GOLD: 0, YELLOW: 0 };
+  for (const p of pages) colorCounts[p.status as keyof typeof colorCounts]++;
+
+  res.json({ pageCount: pages.length, colorCounts });
+});
+
 // ── POST /log ───────────────────────────────────────────────────────────────
 router.post('/log', authenticate, (req: AuthRequest, res: Response): void => {
   const user = req.user!;
@@ -150,8 +179,8 @@ router.post('/log', authenticate, (req: AuthRequest, res: Response): void => {
     res.status(400).json({ error: 'Date must be within the last 14 days' }); return;
   }
 
-  // Read current page statuses
-  const pages = stmtGetCurrentPages.all(user.id) as PageRow[];
+  // Read only pages the student changed in the 7-day window for this log date
+  const pages = stmtGetWeeklyPages.all(user.id, logDate, logDate) as PageRow[];
 
   // Save the snapshot (deletes old log for same date, inserts fresh)
   const logId = saveSnapshot(user.id, logDate, pages);
