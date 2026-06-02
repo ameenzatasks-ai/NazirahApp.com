@@ -20,6 +20,8 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSaved?: (logDate: string) => void;
+  /** Pre-select a date (passed from NazirahDatePicker via URL param). */
+  initialDate?: string;
 }
 
 /* ── Date helpers ────────────────────────────────────────── */
@@ -74,8 +76,8 @@ function PreviewSwatches({ colorCounts }: { colorCounts: NazirahLogPreview['colo
 }
 
 /* ── Main component ──────────────────────────────────────── */
-export default function SaveNazirahSheet({ open, onClose, onSaved }: Props) {
-  const [date, setDate]               = useState<string>(isoToday);
+export default function SaveNazirahSheet({ open, onClose, onSaved, initialDate }: Props) {
+  const [date, setDate]               = useState<string>(initialDate ?? isoToday);
   const [preview, setPreview]         = useState<NazirahLogPreview | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);

@@ -1,11 +1,14 @@
 /**
- * NazirahTrack — standalone "Track your Nazirah" page.
+ * NazirahTrack — full JuzGrid view.
  *
- * Accessible from the Classes list via the "Track your Nazirah" card.
- * Shows the full JuzGrid with Save Nazira + Audit log shortcuts.
+ * Accessible two ways:
+ *   1. Via /nazirah?date=YYYY-MM-DD  — came from NazirahDatePicker; date is
+ *      pre-loaded into SaveNazirahSheet so the student doesn't pick it twice.
+ *   2. Via /nazirah (no param)        — direct access from the bottom nav;
+ *      SaveNazirahSheet defaults to today.
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import JuzGrid from '../hifz/JuzGrid';
@@ -13,8 +16,13 @@ import SaveNazirahSheet from '../hifz/SaveNazirahSheet';
 
 export default function NazirahTrack() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const isStudent = user?.role === 'student';
+
+  // Date pre-selected in the date picker (may be undefined for direct access)
+  const preselectedDate = searchParams.get('date') ?? undefined;
+
   const [saveOpen, setSaveOpen] = useState(false);
 
   return (
@@ -36,10 +44,7 @@ export default function NazirahTrack() {
           <h1 className="font-semibold text-base" style={{ color: 'var(--c-text)' }}>
             Track your Nazirah
           </h1>
-          <p
-            className="text-[10px] uppercase tracking-[0.2em]"
-            style={{ color: 'var(--c-text-muted)' }}
-          >
+          <p className="text-[10px] uppercase tracking-[0.2em]" style={{ color: 'var(--c-text-muted)' }}>
             ناظره
           </p>
         </div>
@@ -57,6 +62,7 @@ export default function NazirahTrack() {
         <SaveNazirahSheet
           open={saveOpen}
           onClose={() => setSaveOpen(false)}
+          initialDate={preselectedDate}
         />
       )}
     </div>

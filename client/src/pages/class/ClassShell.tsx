@@ -250,7 +250,7 @@ export default function ClassShell() {
         <div className="p-5 max-w-md mx-auto pb-layout">
           {/* Track your Nazirah — hero card */}
           <button
-            onClick={() => navigate('/nazirah')}
+            onClick={() => navigate('/nazirah/date')}
             className="w-full flex items-center gap-4 px-5 py-5 rounded-2xl text-left transition-all active:scale-[0.98]"
             style={{
               background: 'linear-gradient(135deg, var(--c-green-dark) 0%, #0a3528 100%)',

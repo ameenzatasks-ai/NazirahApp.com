@@ -23,6 +23,7 @@ const AuditPage           = lazy(() => import('./pages/AuditPage'));
 const NazirahLogsList      = lazy(() => import('./pages/class/NazirahLogsList'));
 const NazirahLogDetailPage = lazy(() => import('./pages/class/NazirahLogDetail'));
 const NazirahTrack         = lazy(() => import('./pages/NazirahTrack'));
+const NazirahDatePicker    = lazy(() => import('./pages/NazirahDatePicker'));
 
 /* ── Spinner fallback ────────────────────────────────────── */
 function PageFallback() {
@@ -113,8 +114,10 @@ function AppRoutes() {
         <Route element={<ProtectedLayout />}>
           <Route path="/dashboard" element={<Navigate to="/classes" replace />} />
 
-          {/* Standalone Nazirah tracker */}
+          {/* Nazirah tracker — direct access (bottom nav) */}
           <Route path="/nazirah" element={<NazirahTrack />} />
+          {/* Date picker → then /nazirah?date=… (from ClassShell button) */}
+          <Route path="/nazirah/date" element={<NazirahDatePicker />} />
           <Route path="/nazirah/audit" element={<AuditPage />} />
 
           {/* Classes list */}
