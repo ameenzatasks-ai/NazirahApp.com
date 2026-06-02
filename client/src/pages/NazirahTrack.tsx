@@ -2,17 +2,25 @@
  * NazirahTrack — full JuzGrid view.
  *
  * Accessible two ways:
- *   1. Via /nazirah?date=YYYY-MM-DD  — came from NazirahDatePicker; date is
- *      pre-loaded into SaveNazirahSheet so the student doesn't pick it twice.
- *   2. Via /nazirah (no param)        — direct access from the bottom nav;
- *      SaveNazirahSheet defaults to today.
+ *   1. /nazirah?date=YYYY-MM-DD  — from NazirahDatePicker; date pre-loaded
+ *   2. /nazirah                  — direct from bottom nav; date defaults today
+ *
+ * After a successful save the Save button is replaced by a "Logged ✓" badge
+ * so the student cannot accidentally double-submit from the same screen state.
  */
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import JuzGrid from '../hifz/JuzGrid';
 import SaveNazirahSheet from '../hifz/SaveNazirahSheet';
+
+function formatDisplay(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun',
+                  'Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${d} ${months[m - 1]} ${y}`;
+}
 
 export default function NazirahTrack() {
   const navigate = useNavigate();
@@ -20,10 +28,16 @@ export default function NazirahTrack() {
   const { user } = useAuth();
   const isStudent = user?.role === 'student';
 
-  // Date pre-selected in the date picker (may be undefined for direct access)
   const preselectedDate = searchParams.get('date') ?? undefined;
 
-  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveOpen,  setSaveOpen]  = useState(false);
+  const [hasSaved,  setHasSaved]  = useState(false);
+  const [savedDate, setSavedDate] = useState<string | null>(null);
+
+  function handleSaved(logDate: string) {
+    setHasSaved(true);
+    setSavedDate(logDate);
+  }
 
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: 'var(--c-bg)' }}>
@@ -40,6 +54,7 @@ export default function NazirahTrack() {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
+
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold text-base" style={{ color: 'var(--c-text)' }}>
             Track your Nazirah
@@ -48,13 +63,24 @@ export default function NazirahTrack() {
             ناظره
           </p>
         </div>
+
+        {/* Saved badge — replaces the Save button after a successful log */}
+        {hasSaved && savedDate && (
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
+            style={{ backgroundColor: 'rgba(0,212,160,0.12)', color: '#00D4A0' }}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Logged {formatDisplay(savedDate)}
+          </div>
+        )}
       </div>
 
-      {/* JuzGrid fills remaining height */}
+      {/* JuzGrid — onSaveNazira is undefined once saved, so JuzGrid hides its button */}
       <div className="flex-1 min-h-0">
         <JuzGrid
           onOpenAudit={() => navigate('/nazirah/audit')}
-          onSaveNazira={isStudent ? () => setSaveOpen(true) : undefined}
+          onSaveNazira={isStudent && !hasSaved ? () => setSaveOpen(true) : undefined}
         />
       </div>
 
@@ -62,6 +88,7 @@ export default function NazirahTrack() {
         <SaveNazirahSheet
           open={saveOpen}
           onClose={() => setSaveOpen(false)}
+          onSaved={handleSaved}
           initialDate={preselectedDate}
         />
       )}

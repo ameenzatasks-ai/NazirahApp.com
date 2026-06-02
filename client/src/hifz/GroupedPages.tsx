@@ -1,21 +1,34 @@
 /**
- * GroupedPages — displays page numbers grouped by their color status.
- *
- * Layout: one card per status (only non-empty ones), showing the status
- * name + icon at the top and a wrapping chip row of page numbers below.
- *
- * Used in:
- *   • StudentDetail → "Overview" tab (current live status)
- *   • NazirahLogDetail → saved snapshot
+ * GroupedPages — pages grouped by colour status.
+ * Consecutive page runs are compressed to ranges: [1,2,3,5] → "1–3", "5"
  */
 import type { PageStatus } from '../../../shared/juz-map';
 import { PALETTE, ALL_STATUSES } from './palette';
 
 interface Props {
-  /** Pages grouped by status. Only statuses with ≥1 page are shown. */
   grouped: Partial<Record<PageStatus, number[]>>;
-  /** Optional total tracked page count shown in the header. */
   totalTracked?: number;
+}
+
+/** Convert a sorted array of page numbers into display tokens.
+ *  [1,2,3,5,8,9,10] → ["1–3","5","8–10"] */
+function toRanges(pages: number[]): string[] {
+  if (pages.length === 0) return [];
+  const sorted = [...pages].sort((a, b) => a - b);
+  const out: string[] = [];
+  let start = sorted[0];
+  let end   = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === end + 1) {
+      end = sorted[i];
+    } else {
+      out.push(start === end ? `${start}` : `${start}–${end}`);
+      start = sorted[i];
+      end   = sorted[i];
+    }
+  }
+  out.push(start === end ? `${start}` : `${start}–${end}`);
+  return out;
 }
 
 export default function GroupedPages({ grouped, totalTracked }: Props) {
@@ -38,9 +51,10 @@ export default function GroupedPages({ grouped, totalTracked }: Props) {
       )}
 
       {nonEmpty.map(status => {
-        const p = PALETTE[status];
+        const p    = PALETTE[status];
         const Icon = p.icon;
-        const pages = grouped[status]!;
+        const pages  = grouped[status]!;
+        const ranges = toRanges(pages);
 
         return (
           <div
@@ -70,19 +84,19 @@ export default function GroupedPages({ grouped, totalTracked }: Props) {
               </span>
             </div>
 
-            {/* Page chips */}
+            {/* Range chips */}
             <div className="px-4 py-3 flex flex-wrap gap-1.5">
-              {pages.map(pg => (
+              {ranges.map(r => (
                 <span
-                  key={pg}
+                  key={r}
                   className="text-xs font-semibold px-2 py-0.5 rounded-md"
                   style={{
-                    backgroundColor: p.fill + '22',  // 13% opacity fill tint
+                    backgroundColor: p.fill + '22',
                     color: 'var(--c-text)',
                     border: `1px solid ${p.accent}44`,
                   }}
                 >
-                  {pg}
+                  {r}
                 </span>
               ))}
             </div>
