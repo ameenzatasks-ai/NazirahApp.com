@@ -1,16 +1,21 @@
 /**
- * NazirahTrack — full Juz grid view.
- * "Save" button navigates to the NazirahLogWizard (/nazirah/log).
+ * NazirahTrack — standalone "Track your Nazirah" page.
+ *
+ * Accessible from the Classes list via the "Track your Nazirah" card.
+ * Shows the full JuzGrid with Save Nazira + Audit log shortcuts.
  */
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import JuzGrid from '../hifz/JuzGrid';
+import SaveNazirahSheet from '../hifz/SaveNazirahSheet';
 
 export default function NazirahTrack() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isStudent = user?.role === 'student';
+  const [saveOpen, setSaveOpen] = useState(false);
 
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: 'var(--c-bg)' }}>
@@ -31,19 +36,29 @@ export default function NazirahTrack() {
           <h1 className="font-semibold text-base" style={{ color: 'var(--c-text)' }}>
             Track your Nazirah
           </h1>
-          <p className="text-[10px] uppercase tracking-[0.2em]" style={{ color: 'var(--c-text-muted)' }}>
+          <p
+            className="text-[10px] uppercase tracking-[0.2em]"
+            style={{ color: 'var(--c-text-muted)' }}
+          >
             ناظره
           </p>
         </div>
       </div>
 
-      {/* JuzGrid — Save button opens the wizard */}
+      {/* JuzGrid fills remaining height */}
       <div className="flex-1 min-h-0">
         <JuzGrid
           onOpenAudit={() => navigate('/nazirah/audit')}
-          onSaveNazira={isStudent ? () => navigate('/nazirah/log') : undefined}
+          onSaveNazira={isStudent ? () => setSaveOpen(true) : undefined}
         />
       </div>
+
+      {isStudent && (
+        <SaveNazirahSheet
+          open={saveOpen}
+          onClose={() => setSaveOpen(false)}
+        />
+      )}
     </div>
   );
 }

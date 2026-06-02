@@ -19,6 +19,8 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
+  const initial = user.name[0]?.toUpperCase();
+
   return (
     <div
       className="min-h-screen scroll-container pb-layout pt-safe"
@@ -45,12 +47,24 @@ export default function ProfileScreen() {
           </button>
         </div>
 
-        {/* Name + role */}
-        <div className="flex flex-col items-center gap-1 mb-8">
-          <p className="text-xl font-semibold" style={{ color: 'var(--c-text)' }}>{user.name}</p>
-          <p className="text-sm capitalize" style={{ color: 'var(--c-text-muted)' }}>
-            {user.role === 'ustadh' ? 'Ustadh (Teacher)' : user.role === 'student' ? 'Student' : 'No role'}
-          </p>
+        {/* Avatar + name */}
+        <div className="flex flex-col items-center gap-3 mb-8">
+          {user.avatar_url ? (
+            <img src={user.avatar_url} alt={user.name} className="w-20 h-20 rounded-full object-cover" loading="lazy" />
+          ) : (
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold"
+              style={{ backgroundColor: 'var(--c-green-dark)', color: 'var(--c-gold)' }}
+            >
+              {initial}
+            </div>
+          )}
+          <div className="text-center">
+            <p className="text-lg font-semibold" style={{ color: 'var(--c-text)' }}>{user.name}</p>
+            <p className="text-sm capitalize" style={{ color: 'var(--c-text-muted)' }}>
+              {user.role ?? 'No role'}
+            </p>
+          </div>
         </div>
 
         {/* Info rows */}

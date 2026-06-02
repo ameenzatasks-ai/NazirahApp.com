@@ -23,7 +23,6 @@ const AuditPage           = lazy(() => import('./pages/AuditPage'));
 const NazirahLogsList      = lazy(() => import('./pages/class/NazirahLogsList'));
 const NazirahLogDetailPage = lazy(() => import('./pages/class/NazirahLogDetail'));
 const NazirahTrack         = lazy(() => import('./pages/NazirahTrack'));
-const NazirahLogWizard     = lazy(() => import('./pages/NazirahLogWizard'));
 
 /* ── Spinner fallback ────────────────────────────────────── */
 function PageFallback() {
@@ -117,7 +116,6 @@ function AppRoutes() {
           {/* Standalone Nazirah tracker */}
           <Route path="/nazirah" element={<NazirahTrack />} />
           <Route path="/nazirah/audit" element={<AuditPage />} />
-          <Route path="/nazirah/log" element={<NazirahLogWizard />} />
 
           {/* Classes list */}
           <Route path="/classes" element={<ClassesList />} />
