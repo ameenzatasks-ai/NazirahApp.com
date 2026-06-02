@@ -158,9 +158,11 @@ router.post('/log', authenticate, (req: AuthRequest, res: Response): void => {
     res.status(403).json({ error: 'Students only' }); return;
   }
 
-  const parsed = z
-    .object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD') })
-    .safeParse(req.body);
+  const parsed = z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
+    /** Explicit page numbers chosen by the student (wizard flow). */
+    selectedPages: z.array(z.number().int().min(1).max(604)).min(1).optional(),
+  }).safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.errors[0].message }); return;
   }
@@ -179,8 +181,21 @@ router.post('/log', authenticate, (req: AuthRequest, res: Response): void => {
     res.status(400).json({ error: 'Date must be within the last 14 days' }); return;
   }
 
-  // Read only pages the student changed in the 7-day window for this log date
-  const pages = stmtGetWeeklyPages.all(user.id, logDate, logDate) as PageRow[];
+  let pages: PageRow[];
+  if (parsed.data.selectedPages && parsed.data.selectedPages.length > 0) {
+    // Wizard flow — student explicitly chose these pages
+    const placeholders = parsed.data.selectedPages.map(() => '?').join(',');
+    pages = db.prepare(`
+      SELECT page_number, status FROM student_page_status
+      WHERE student_id = ? AND variant = 'NEW_MADANI'
+        AND page_number IN (${placeholders})
+        AND status IS NOT NULL
+      ORDER BY page_number ASC
+    `).all(user.id, ...parsed.data.selectedPages) as PageRow[];
+  } else {
+    // Fallback — weekly window
+    pages = stmtGetWeeklyPages.all(user.id, logDate, logDate) as PageRow[];
+  }
 
   // Save the snapshot (deletes old log for same date, inserts fresh)
   const logId = saveSnapshot(user.id, logDate, pages);

@@ -29,9 +29,9 @@ export const nazirahApi = {
   previewLog: (date: string) =>
     api.get<NazirahLogPreview>(`/nazirah/log/preview?date=${date}`),
 
-  /** Student: save weekly page statuses as a Nazira log for the given date. */
-  saveLog: (date: string) =>
-    api.post<NazirahLogSummary>('/nazirah/log', { date }),
+  /** Student: save a Nazira log. Pass selectedPages from the wizard, or omit for weekly fallback. */
+  saveLog: (date: string, selectedPages?: number[]) =>
+    api.post<NazirahLogSummary>('/nazirah/log', { date, selectedPages }),
 
   /** Student: list own logs (newest first). */
   getLogs: () =>
