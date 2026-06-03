@@ -26,6 +26,8 @@ const NazirahTrack         = lazy(() => import('./pages/NazirahTrack'));
 const NazirahDatePicker    = lazy(() => import('./pages/NazirahDatePicker'));
 const HistoryPage          = lazy(() => import('./pages/HistoryPage'));
 const HistoryLogDetail     = lazy(() => import('./pages/class/NazirahLogDetail'));
+const HifzHome             = lazy(() => import('./pages/hifz/HifzHome'));
+const DawrLog              = lazy(() => import('./pages/hifz/DawrLog'));
 
 /* ── Spinner fallback ────────────────────────────────────── */
 function PageFallback() {
@@ -149,6 +151,10 @@ function AppRoutes() {
           {/* History tab */}
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/history/:logId" element={<HistoryLogDetail />} />
+
+          {/* Hifz module */}
+          <Route path="/hifz" element={<HifzHome />} />
+          <Route path="/hifz/dawr" element={<DawrLog />} />
 
           {/* Profile */}
           <Route path="/profile" element={<ProfileScreen />} />

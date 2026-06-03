@@ -142,6 +142,44 @@ export function runMigrations(): void {
     DROP TABLE IF EXISTS student_quarter_status;
   `);
 
+  // ── Hifz module tables ────────────────────────────────────────────────────
+  db.exec(`
+    -- Student daily task submissions (Sabaq, Sabaq Para, Dawr)
+    CREATE TABLE IF NOT EXISTS hifz_daily_tasks (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id   INTEGER NOT NULL REFERENCES users(id),
+      task_date    TEXT    NOT NULL,
+      task_type    TEXT    NOT NULL
+                           CHECK(task_type IN ('sabaq','sabaq_para','dawr')),
+      sabaq_surah  INTEGER,
+      sabaq_verse  INTEGER,
+      sp_start     INTEGER,
+      dawr_entries TEXT,   -- JSON: [{juz:1,quarter:"1/4"}, ...]
+      submitted_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- Dawr log grid: one row per (student, juz, quarter)
+    -- Updated each time the student submits a matching Dawr task.
+    CREATE TABLE IF NOT EXISTS hifz_dawr_log (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id  INTEGER NOT NULL REFERENCES users(id),
+      juz_number  INTEGER NOT NULL CHECK(juz_number BETWEEN 1 AND 30),
+      quarter     TEXT    NOT NULL CHECK(quarter IN ('1/4','1/2','3/4','full')),
+      logged_date TEXT,
+      score       INTEGER CHECK(score BETWEEN 1 AND 7),
+      score_label TEXT,
+      comment     TEXT,
+      scored_by   INTEGER REFERENCES users(id),
+      scored_at   TEXT,
+      UNIQUE(student_id, juz_number, quarter)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_hdt_student
+      ON hifz_daily_tasks(student_id, task_date DESC);
+    CREATE INDEX IF NOT EXISTS idx_hdl_student
+      ON hifz_dawr_log(student_id);
+  `);
+
   // ── status_history schema repair ───────────────────────────────────────────
   //
   // Two legacy problems can exist in the live database:

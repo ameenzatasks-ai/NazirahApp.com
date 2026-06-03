@@ -14,6 +14,8 @@ import pagesRouter from './pages/router';
 import hifzRouter from './hifz/router';
 import nazirahRouter from './nazirah/router';
 import inviteRouter from './invite/router';
+import hifzTasksRouter from './hifz-tasks/router';
+import dawrRouter from './dawr/router';
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
@@ -72,6 +74,8 @@ app.use('/api/classes/:classId/invite', inviteRouter);
 app.use('/api/pages', pagesRouter);
 app.use('/api/hifz', hifzRouter);
 app.use('/api/nazirah', nazirahRouter);
+app.use('/api/hifz-tasks', hifzTasksRouter);
+app.use('/api/dawr', dawrRouter);
 
 // ── Production static serving ──────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
