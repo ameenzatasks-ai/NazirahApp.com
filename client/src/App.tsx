@@ -25,6 +25,7 @@ const NazirahLogDetailPage = lazy(() => import('./pages/class/NazirahLogDetail')
 const NazirahTrack         = lazy(() => import('./pages/NazirahTrack'));
 const NazirahDatePicker    = lazy(() => import('./pages/NazirahDatePicker'));
 const HistoryPage          = lazy(() => import('./pages/HistoryPage'));
+const HistoryLogDetail     = lazy(() => import('./pages/class/NazirahLogDetail'));
 const HifzHome             = lazy(() => import('./pages/hifz/HifzHome'));
 const DawrLog              = lazy(() => import('./pages/hifz/DawrLog'));
 
@@ -149,7 +150,7 @@ function AppRoutes() {
 
           {/* History tab */}
           <Route path="/history" element={<HistoryPage />} />
-          <Route path="/history/:logId" element={<NazirahLogDetailPage />} />
+          <Route path="/history/:logId" element={<HistoryLogDetail />} />
 
           {/* Hifz module */}
           <Route path="/hifz" element={<HifzHome />} />

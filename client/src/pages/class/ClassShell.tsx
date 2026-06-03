@@ -247,8 +247,8 @@ export default function ClassShell() {
           <UstadhClassView classId={id} />
         </div>
       ) : (
-        <div className="p-5 max-w-md mx-auto pb-layout flex flex-col gap-3">
-          {/* Track your Nazirah */}
+        <div className="p-5 max-w-md mx-auto pb-layout">
+          {/* Track your Nazirah — hero card */}
           <button
             onClick={() => navigate('/nazirah/date')}
             className="w-full flex items-center gap-4 px-5 py-5 rounded-2xl text-left transition-all active:scale-[0.98]"
@@ -258,29 +258,11 @@ export default function ClassShell() {
             }}
           >
             <div className="flex-1 min-w-0">
-              <p lang="ar" className="font-bold text-lg leading-tight mb-0.5" style={{ color: 'rgba(0,212,160,0.85)', fontFamily: "'Amiri', serif" }}>ناظره</p>
-              <p className="font-bold text-base" style={{ color: '#FAF7F0' }}>Track your Nazirah</p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(250,247,240,0.55)' }}>
-                Log page statuses · Pick a date · Save weekly progress
+              <p className="font-bold text-base" style={{ color: '#FAF7F0' }}>
+                Track your Nazirah
               </p>
-            </div>
-            <ChevronRight className="w-5 h-5 flex-shrink-0" style={{ color: 'rgba(250,247,240,0.4)' }} />
-          </button>
-
-          {/* Track your Hifz */}
-          <button
-            onClick={() => navigate('/hifz')}
-            className="w-full flex items-center gap-4 px-5 py-5 rounded-2xl text-left transition-all active:scale-[0.98]"
-            style={{
-              background: 'linear-gradient(135deg, #7A5A00 0%, #4A3500 100%)',
-              boxShadow: '0 4px 24px rgba(122,90,0,0.30)',
-            }}
-          >
-            <div className="flex-1 min-w-0">
-              <p lang="ar" className="font-bold text-lg leading-tight mb-0.5" style={{ color: 'rgba(255,215,0,0.85)', fontFamily: "'Amiri', serif" }}>حِفْظ</p>
-              <p className="font-bold text-base" style={{ color: '#FAF7F0' }}>Track your Hifz</p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(250,247,240,0.55)' }}>
-                Log Sabaq · Sabaq Para · Dawr · View your Dawr Log
+              <p className="text-[11px] mt-1" style={{ color: 'rgba(250,247,240,0.55)' }}>
+                Update your page-by-page Hifz status
               </p>
             </div>
             <ChevronRight className="w-5 h-5 flex-shrink-0" style={{ color: 'rgba(250,247,240,0.4)' }} />
