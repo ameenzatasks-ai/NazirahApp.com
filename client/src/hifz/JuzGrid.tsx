@@ -73,22 +73,23 @@ function PageTile({ page, onTap, highlighted }: { page: JuzGridPage; onTap: () =
     <button
       id={`page-${page.pageNumber}`}
       onClick={onTap}
-      className="aspect-square rounded-md text-sm font-bold transition-all active:scale-90 flex items-center justify-center"
+      className="aspect-square rounded-xl text-base font-bold transition-all active:scale-90 flex items-center justify-center"
       style={{
         background: entry ? entry.fill : 'var(--c-bg-card)',
         color: entry ? entry.text : 'var(--c-text)',
         border: highlighted
-          ? '2px solid var(--c-gold)'
+          ? '2.5px solid var(--c-gold)'
           : untouched
-            ? '1px solid var(--c-border-soft)'
+            ? '1.5px solid var(--c-border-soft)'
             : status === 'BLACK'
-              ? '1px solid var(--c-border-soft)'
+              ? '1.5px solid var(--c-border-soft)'
               : 'none',
         boxShadow: highlighted
-          ? '0 0 0 3px rgba(255,215,0,0.35)'
+          ? '0 0 0 4px rgba(255,215,0,0.35)'
           : status === 'GOLD'
-            ? '0 0 0 1.5px #FFD700 inset, 0 1px 3px rgba(255,215,0,0.25)'
+            ? '0 0 0 2px #FFD700 inset, 0 2px 6px rgba(255,215,0,0.25)'
             : undefined,
+        minHeight: 56,
       }}
       aria-label={`Page ${page.pageNumber}${entry ? `, ${entry.label}` : ', untouched'}`}
     >
@@ -347,10 +348,10 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
           </p>
         ) : (
           <div
-            className="grid gap-2 max-w-2xl mx-auto"
+            className="grid gap-3 mx-auto"
             style={{
-              gridTemplateColumns: 'repeat(auto-fill, minmax(48px, 1fr))',
-              maxWidth: '100%',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              maxWidth: 360,
             }}
           >
             {grid.pages.map(page => (
