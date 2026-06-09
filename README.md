@@ -1,153 +1,196 @@
-# Nazirah — Quran Reading Progress Tracker
+# The Hifz App
 
-> **Nazirah** (نَظِيرَة) — reading the Quran by looking at the text, as opposed to recitation from memory.
-
-Nazirah is a web application for traditional Islamic learning circles. Students log how many times they have read each of the 604 pages of the Mushaf; Ustadhs (teachers) create classes, monitor student progress, and post announcements.
-
-![Screenshot placeholder — run the app and capture your own]()
+A private web application for tracking Quran Hifz (memorisation). Students log their daily tasks — Dawr, Sabaq, and Sabaq Para — and their Ustadh reviews and scores each submission.
 
 ---
 
-## Setup
+## Features
+
+### Students
+- **Date-aware task submission** — pick the date before logging (submit the night before for the following day)
+- **Dawr** — log full-Juz revision; select Juz and quarter (1/4 · 2/4 · 3/4 · 4/4); add multiple Juz per session
+- **Sabaq** — log new memorisation with Surah, starting verse, and line count
+- **Sabaq Para** — log a 10-page para review with starting page number
+- **Dawr Log** — 30 Juz × 4 quarter grid; re-reading the same cell on a new date adds a second cycle row instead of overwriting the first
+- **SP & Sabaq Log** — view scored history with colour-coded marks
+- **History** — cross-class timeline of all past tasks and Ustadh scores
+
+### Ustadhs
+- **Class management** — create classes, generate invite links, manage enrolments
+- **Student review** — score each student's Dawr cycles (and specific historical cycles), Sabaq, Sabaq Para, Tajwīd, and Adab on a 1–7 scale
+- **Hifz History** — per-student breakdown of all submissions including lines memorised
+- **Today view** — see which students have submitted tasks for the current day
+
+### General
+- Sign in with Google — no passwords
+- Progressive Web App (PWA) — installable on mobile and desktop
+- Dark UI with Amiri Arabic calligraphy accents
+
+---
+
+## Score Scale (1–7)
+
+| Score | Label | Colour |
+|---|---|---|
+| 7 | Excellent | Green |
+| 6 | Very Good | Light Green |
+| 5 | Average | Blue |
+| 4 | Below Average | Yellow |
+| 3 | Fail | Amber |
+| 2 | Bad Fail | Red |
+| 1 | Abysmal | Dark Red |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, TypeScript, Vite 5, Tailwind CSS 3 |
+| Backend | Express 4, TypeScript, better-sqlite3 |
+| Auth | Google OAuth 2.0 (Passport.js) + JWT (httpOnly cookie, 30-day) |
+| Database | SQLite with WAL mode, foreign-key constraints enforced |
+| PWA | vite-plugin-pwa |
+| Monorepo | npm workspaces (packages hoisted to root `node_modules`) |
+
+---
+
+## Project Structure
+
+```
+/
+├── client/                  # React + Vite frontend
+│   └── src/
+│       ├── api/             # Typed fetch wrappers (dawr, hifzTasks, …)
+│       ├── components/      # Shared components (nav, spinner, modals)
+│       ├── contexts/        # AuthContext (current user + role)
+│       └── pages/
+│           ├── hifz/        # HifzHome, DawrLog, StudentDawrLog
+│           └── class/       # StudentDetail, HifzHistoryPage
+├── server/                  # Express backend
+│   └── src/
+│       ├── auth/            # Google OAuth flow + JWT middleware
+│       ├── classes/         # Class CRUD, enrolments, invitations
+│       ├── dawr/            # Dawr log grid, cycle management, scoring
+│       └── hifz-tasks/      # Daily task submission + SP/Sabaq scoring
+└── .env.example
+```
+
+---
+
+## Getting Started
 
 ### Prerequisites
 - Node.js 18+
-- npm 9+
+- A Google Cloud project with OAuth 2.0 credentials — [create here](https://console.cloud.google.com/apis/credentials)
 
-### Install & run
+### 1 — Install dependencies
 
 ```bash
-# 1. Clone the repository
-git clone <repo-url>
-cd nazirah
-
-# 2. Install all workspace dependencies
 npm install
-
-# 3. Start both server (port 3001) and client (port 5173)
-npm run dev
 ```
 
-Open http://localhost:5173 in your browser.
+Run once at the repo root. npm workspaces hoist everything automatically.
 
-### Build for production
+### 2 — Configure environment
 
 ```bash
-npm run build
-npm start
+cp .env.example server/.env
 ```
 
-The production server serves the built client as static files and listens on port 3001.
+Edit `server/.env`:
+
+| Variable | Description |
+|---|---|
+| `JWT_SECRET` | Long random string — keep secret in production |
+| `GOOGLE_CLIENT_ID` | From Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | From Google Cloud Console |
+| `GOOGLE_CALLBACK_URL` | `http://localhost:3001/api/auth/google/callback` (dev) |
+| `CLIENT_ORIGIN` | `http://localhost:5173` (dev) |
+| `SMTP_HOST/PORT/USER/PASS` | Optional. Gmail + App Password for account-deletion OTP. Leave blank to print codes to the server console. |
+
+In Google Cloud Console, add `http://localhost:3001/api/auth/google/callback` as an **Authorised redirect URI**.
+
+### 3 — Run in development
+
+```bash
+# Terminal 1 — backend on :3001
+npm run dev --workspace=server
+
+# Terminal 2 — frontend on :5173
+npm run dev --workspace=client
+```
+
+Vite proxies all `/api/*` requests to `http://127.0.0.1:3001` in development.
 
 ---
 
-## Environment Variables
+## Production Build
 
-Create a `.env` file inside the `server/` directory (or copy `.env.example`):
+```bash
+npm run build --workspace=client   # outputs to client/dist/
+npm run build --workspace=server   # outputs to dist/
+npm run start --workspace=server
+```
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `JWT_SECRET` | **Yes (production)** | Insecure dev default | Secret for signing JWTs |
-| `PORT` | No | `3001` | Server port |
-| `DATABASE_PATH` | No | `./nazirah.db` | Path to the SQLite file |
-| `FRONTEND_ORIGIN` | No (production) | — | Allowed CORS origin in production |
-
-In development, if `JWT_SECRET` is not set the server uses an insecure default and logs a warning.  
-**In production the server will refuse to start without `JWT_SECRET`.**
+Serve `client/dist` via a CDN or static host, set `CLIENT_ORIGIN` to that URL, and point your domain at the backend.
 
 ---
 
-## Seed Accounts (development only)
+## User Roles
 
-Seed data is inserted automatically on first run when the database is empty.
+| Role | How to assign |
+|---|---|
+| **Student** | Default role after Google sign-in |
+| **Ustadh** | Set manually: `UPDATE users SET role = 'ustadh' WHERE email = 'you@example.com'` |
 
-| Role | Email | Password |
-|---|---|---|
-| Ustadh | `ustadh@nazirah.app` | `password123` |
-| Student | `student1@nazirah.app` | `password123` |
-| Student | `student2@nazirah.app` | `password123` |
-
-The class **"Morning Hifz Circle"** is created with join code `ABC123` and both students enrolled.  
-Student 1 (Fatimah Ali) has varied page reads across pages 1–40 covering all five statuses.
+Students who access the Hifz module are redirected to their class list first; they cannot access the module without joining a class.
 
 ---
 
-## API Reference
+## Database
 
-All routes are prefixed with `/api`. Protected routes require `Authorization: Bearer <token>`.  
-Errors return `{ "error": string }` with the appropriate HTTP status code.
+SQLite is created automatically at `server/nazirah.db` on first run. Migrations execute on every startup — no manual steps required.
 
-### Auth
+**Core tables**
 
-| Method | Path | Body | Notes |
-|---|---|---|---|
-| POST | `/api/auth/register` | `{ name, email, password, role }` | `role` ∈ `'ustadh' \| 'student'` |
-| POST | `/api/auth/login` | `{ email, password }` | Returns `{ token, user }` |
-| GET | `/api/auth/me` | — | Returns current user (protected) |
-
-### Classes
-
-| Method | Path | Description |
-|---|---|---|
-| POST | `/api/classes` | Create a class (Ustadh only). Body: `{ name }`. |
-| GET | `/api/classes` | List my classes |
-| GET | `/api/classes/:id` | Class details (Ustadh only, must own) |
-| POST | `/api/classes/join` | Body: `{ joinCode }` — Student joins |
-| DELETE | `/api/classes/:id/leave` | Student leaves a class |
-
-### Pages
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/pages` | All 604 pages with status for current student |
-| PATCH | `/api/pages/:pageNumber` | Body: `{ incrementBy }` (1–21). Log reads. |
-| GET | `/api/pages/summary` | `{ black, red, amber, green, yellow }` counts |
-
-### Ustadh Views
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/classes/:id/students` | Students with summary counts |
-| GET | `/api/classes/:id/students/:studentId/pages` | Full page list for one student |
-
-### Announcements
-
-| Method | Path | Description |
-|---|---|---|
-| POST | `/api/classes/:id/announcements` | Body: `{ body }`. Ustadh (owner) only. |
-| GET | `/api/classes/:id/announcements` | Newest-first. Members only. |
+| Table | Purpose |
+|---|---|
+| `users` | Accounts (Google sub, name, email, role) |
+| `classes` | Classes owned by an Ustadh |
+| `enrolments` | Student ↔ class membership |
+| `class_invitations` | Invite tokens with expiry |
+| `hifz_daily_tasks` | Student task submissions (Dawr, Sabaq, SP) |
+| `hifz_task_scores` | Ustadh scores per date (SP, Sabaq, Tajwīd, Adab) |
+| `hifz_dawr_log` | Dawr grid cells — one row per (student, class, juz, quarter, date) |
 
 ---
 
-## Page Status Legend
+## API Overview
 
-| Status | Colour | Condition |
-|---|---|---|
-| Black | `#1C1C1E` | Never read (read count = 0) |
-| Red | `#E24B4A` | Read 1–9 times |
-| Amber | `#F59E0B` | Read 10–20 times |
-| Green | `#22C55E` | Read 21+ times, last read ≤ 10 days ago |
-| Yellow | `#EAB308` | Read 21+ times, but not read in the last 10 days |
+All routes are prefixed `/api`. Protected routes require a valid `nazirah_token` cookie.
 
-Status is always computed on the fly from `read_count` and `last_read_at`; it is never stored.
+```
+POST   /api/auth/google            Start Google OAuth flow
+GET    /api/auth/google/callback   OAuth redirect handler
+GET    /api/auth/me                Current user
+
+GET    /api/classes                My classes
+POST   /api/classes                Create class (Ustadh)
+DELETE /api/classes/:id            Delete class (Ustadh, owner)
+POST   /api/classes/:id/invite     Generate invite link
+POST   /api/classes/join/:token    Student joins via invite
+
+POST   /api/hifz-tasks             Submit tasks for a date (Student)
+GET    /api/hifz-tasks             Own task history
+PATCH  /api/hifz-tasks/student/:id/score   Score a student's date (Ustadh)
+
+GET    /api/dawr/:studentId        Dawr log grid for a student
+PATCH  /api/dawr/:juz              Score a Dawr cell / cycle (Ustadh)
+```
 
 ---
 
-## Out of Scope for v1
+## License
 
-- Push notifications
-- File uploads / profile pictures
-- Surah/Juz navigation overlay on the page grid
-- Hifz progress tracking beyond Green status
-- In-app messaging between students
-- Parent/Guardian observer role
-- React Native mobile app
-
----
-
-## Implied Decisions (not explicit in the spec)
-
-- **`nanoid` version 3** is used (CommonJS-compatible with `better-sqlite3`'s synchronous environment) rather than v4+ which is ESM-only. The server uses `customAlphabet` to produce unambiguous uppercase codes.
-- **`ts-node-dev`** is used for the dev server watch loop as it requires no separate compilation step.
-- The Student profile page (`/student/profile`) is added as a landing target for the mobile bottom-nav "Profile" tab, showing name, email, role, dark-mode toggle, and sign-out.
-- In dark mode the background switches to `gray-900`; status colours remain the same.
+Private — all rights reserved.
