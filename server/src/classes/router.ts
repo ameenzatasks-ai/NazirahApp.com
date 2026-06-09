@@ -133,6 +133,9 @@ router.delete('/:id', authenticate, requireRole('ustadh'), (req: AuthRequest, re
   if (!cls) { res.status(404).json({ error: 'Class not found' }); return; }
 
   const tx = db.transaction((id: number) => {
+    db.prepare('DELETE FROM hifz_task_scores  WHERE class_id = ?').run(id);
+    db.prepare('DELETE FROM hifz_dawr_log     WHERE class_id = ?').run(id);
+    db.prepare('DELETE FROM hifz_daily_tasks  WHERE class_id = ?').run(id);
     db.prepare('DELETE FROM class_invitations WHERE class_id = ?').run(id);
     db.prepare('DELETE FROM enrolments        WHERE class_id = ?').run(id);
     db.prepare('DELETE FROM classes           WHERE id = ?').run(id);

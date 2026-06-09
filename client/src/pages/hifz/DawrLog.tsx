@@ -1,34 +1,30 @@
 /**
  * DawrLog — 30 Juz × 4 quarters progress grid.
  *
- * Student view: read-only — cells show date logged + Ustadh score.
- * Ustadh view: tapping a cell opens a score panel (1–7 scale).
- *
- * Can be accessed standalone (/hifz/dawr) or as a sub-view when Ustadh
- * taps a student (pass studentId + studentName props).
+ * Supports multiple cycles: if a student reads the same Juz on a different
+ * date, a new cycle row pair (Date + Score) is appended below the first.
  */
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Grid3x3 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
-import { dawrApi, type DawrCell, type DawrGrid } from '../../api/dawr';
+import { dawrApi, type DawrCell, type DawrGrid, type StudentDawrData } from '../../api/dawr';
 import type { Quarter } from '../../api/hifzTasks';
 import Spinner from '../../components/Spinner';
 
-/* ── Score color palette (matches server) ─────────────────────── */
-const SCORE_COLOURS: Record<number, string> = {
-  1: '#C53030', 2: '#E05C00', 3: '#D97706',
-  4: '#B8862A', 5: '#0D7264', 6: '#166534', 7: '#0F4C3A',
+/* ── Score color palette (matches design prototype SCORE_COLORS) ── */
+const SCORE_COLORS: Record<number, { bg: string; text: string; label: string }> = {
+  7: { bg: '#00B050', text: '#FFF', label: 'Excellent' },
+  6: { bg: '#92D050', text: '#1A3A00', label: 'Very Good' },
+  5: { bg: '#00B0F0', text: '#FFF', label: 'Average' },
+  4: { bg: '#FFD400', text: '#3A2E00', label: 'Below Avg' },
+  3: { bg: '#FFC000', text: '#3A2E00', label: 'Fail' },
+  2: { bg: '#EE0000', text: '#FFF', label: 'Bad Fail' },
+  1: { bg: '#C00000', text: '#FFF', label: 'Abysmal' },
 };
-const SCORE_LABELS: Record<number, string> = {
-  1: 'Repeat', 2: 'Weak', 3: 'Needs Work',
-  4: 'Average', 5: 'Good', 6: 'Very Good', 7: 'Excellent',
-};
+
 const QUARTERS: Quarter[] = ['1/4', '1/2', '3/4', 'full'];
-const QUARTER_DISPLAY: Record<Quarter, string> = {
-  '1/4': '¼', '1/2': '½', '3/4': '¾', 'full': '●',
-};
 
 function shortDate(iso: string): string {
   const [, m, d] = iso.split('-').map(Number);
@@ -37,66 +33,75 @@ function shortDate(iso: string): string {
   return `${d} ${months[m-1]}`;
 }
 
+function getInitials(name: string): string {
+  return name.split(' ').map(w => w[0]?.toUpperCase()).join('').slice(0, 2);
+}
+
+const AVATAR_COLORS = ['#0F4C3A','#B8862A','#0E9C78','#9A6F1E','#2D5A8C','#6B3FA0'];
+function avatarBg(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i)) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[h];
+}
+
 interface Props {
   studentId?:   number;
   studentName?: string;
+  classIdProp?: number;
 }
 
-export default function DawrLog({ studentId, studentName }: Props) {
+export default function DawrLog({ studentId, studentName, classIdProp }: Props) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { classId: classIdParam } = useParams<{ classId?: string }>();
+  const classId = classIdProp ?? (classIdParam ? parseInt(classIdParam, 10) : undefined);
   const isUstadh = user?.role === 'ustadh';
 
-  const [grid,    setGrid]    = useState<DawrCell[]>([]);
+  const [singleGrid, setSingleGrid] = useState<DawrCell[]>([]);
+  const [allStudents, setAllStudents] = useState<StudentDawrData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Score panel state (Ustadh)
-  const [scoreCell,   setScoreCell]   = useState<DawrCell | null>(null);
-  const [scoreValue,  setScoreValue]  = useState<number | null>(null);
-  const [scoreComment,setScoreComment]= useState('');
-  const [saving,      setSaving]      = useState(false);
+  const isMultiStudent = isUstadh && studentId == null;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data: DawrGrid = studentId != null
-        ? await dawrApi.studentGrid(studentId)
-        : await dawrApi.myGrid();
-      setGrid(data.grid);
+      if (isMultiStudent) {
+        const data = await dawrApi.allStudents(classId);
+        setAllStudents(data.students);
+      } else {
+        const data: DawrGrid = studentId != null
+          ? await dawrApi.studentGrid(studentId, classId)
+          : await dawrApi.myGrid(classId);
+        setSingleGrid(data.grid);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to load Dawr Log');
     } finally {
       setLoading(false);
     }
-  }, [studentId]);
+  }, [studentId, isMultiStudent, classId]);
 
   useEffect(() => { load(); }, [load]);
 
-  /* Build lookup */
+  /* Build lookup: "juz:quarter" → DawrCell (with cycles[]) */
   const cellMap: Record<string, DawrCell> = {};
-  for (const c of grid) cellMap[`${c.juz}:${c.quarter}`] = c;
+  for (const c of singleGrid) cellMap[`${c.juz}:${c.quarter}`] = c;
 
-  function openScore(cell: DawrCell) {
-    if (!isUstadh) return;
-    setScoreCell(cell);
-    setScoreValue(cell.score);
-    setScoreComment(cell.comment ?? '');
+  const studentMaps: Record<number, Record<string, DawrCell>> = {};
+  for (const s of allStudents) {
+    const m: Record<string, DawrCell> = {};
+    for (const c of s.grid) m[`${c.juz}:${c.quarter}`] = c;
+    studentMaps[s.id] = m;
   }
 
-  async function saveScore() {
-    if (!scoreCell || scoreValue == null || studentId == null) return;
-    setSaving(true);
-    try {
-      await dawrApi.score(scoreCell.juz, scoreCell.quarter as Quarter, studentId, scoreValue, scoreComment || undefined);
-      toast.success('Score saved');
-      setScoreCell(null);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Save failed');
-    } finally {
-      setSaving(false);
-    }
-  }
+  const studentCount = isMultiStudent ? allStudents.length : 1;
+  const displayName = studentName ?? (isMultiStudent ? '' : user?.name ?? '');
+
+  /* Max cycles across all cells — determines how many row pairs to render */
+  const maxCycles = isMultiStudent
+    ? 1  // per-student maxCycles computed inside StudentRows
+    : Math.max(1, ...singleGrid.map(c => c.cycles.length));
 
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: 'var(--c-bg)' }}>
@@ -120,69 +125,34 @@ export default function DawrLog({ studentId, studentName }: Props) {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b flex-wrap" style={{ borderColor: 'var(--c-border)' }}>
-        {Object.entries(SCORE_LABELS).map(([s, label]) => (
-          <div key={s} className="flex items-center gap-1">
-            <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: SCORE_COLOURS[Number(s)] }} />
-            <span className="text-[9px] font-semibold" style={{ color: 'var(--c-text-muted)' }}>{s} · {label}</span>
-          </div>
-        ))}
-        <span className="ml-auto text-[9px]" style={{ color: 'var(--c-text-faint)' }}>
-          ¼ = Quarter · ½ = Half · ¾ = Three-Qtr · ● = Full
+      {/* Info strip */}
+      <div className="px-4 py-2.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--c-border)', backgroundColor: 'var(--c-bg-subtle)' }}>
+        <span className="text-[11px] font-semibold" style={{ color: 'var(--c-text-muted)' }}>
+          {isMultiStudent
+            ? `${studentCount} student${studentCount !== 1 ? 's' : ''} · Hifz Class`
+            : `${displayName ? displayName + ' · ' : ''}Your Dawr progress`}
         </span>
       </div>
 
-      {/* Score panel (Ustadh) */}
-      {scoreCell && (
-        <div className="px-4 py-3 border-b flex-shrink-0"
-          style={{ backgroundColor: 'var(--c-bg-card)', borderColor: 'var(--c-border)' }}>
-          <p className="text-xs font-semibold mb-2" style={{ color: 'var(--c-text)' }}>
-            Score: Juz {scoreCell.juz} {scoreCell.quarterLabel}
-          </p>
-          {/* 7-button score grid */}
-          <div className="grid gap-1.5 mb-3" style={{ gridTemplateColumns: 'repeat(7,1fr)' }}>
-            {([1,2,3,4,5,6,7] as number[]).map(s => (
-              <button key={s} onClick={() => setScoreValue(s)}
-                className="aspect-square rounded-lg text-sm font-extrabold transition-all active:scale-90 flex items-center justify-center"
-                style={{
-                  backgroundColor: SCORE_COLOURS[s],
-                  color: '#FFF',
-                  border: scoreValue === s ? '2.5px solid #FFF' : '2px solid transparent',
-                  boxShadow: scoreValue === s ? `0 0 0 2.5px ${SCORE_COLOURS[s]}` : undefined,
-                  transform: scoreValue === s ? 'scale(1.08)' : undefined,
-                }}>
-                {s}
-              </button>
-            ))}
+      {/* Description */}
+      <div className="px-4 py-2 border-b" style={{ borderColor: 'var(--c-border)' }}>
+        <p className="text-[11px] leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>
+          30 Juz × 4 quarters. Each date a Juz is read creates a new cycle row.{' '}
+          {isUstadh ? 'Scores are entered via the Enter Scores tab on the student page.' : 'Your Ustadh enters the score /7.'}
+        </p>
+      </div>
+
+      {/* Score legend */}
+      <div className="flex items-center gap-2 flex-wrap px-4 py-2 border-b" style={{ borderColor: 'var(--c-border)' }}>
+        {Object.entries(SCORE_COLORS).sort((a, b) => Number(b[0]) - Number(a[0])).map(([s, col]) => (
+          <div key={s} className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: col.bg }} />
+            <span className="text-[9px] font-semibold" style={{ color: 'var(--c-text-muted)' }}>
+              {s} {col.label}
+            </span>
           </div>
-          {scoreValue && (
-            <p className="text-[10px] font-semibold text-center mb-2" style={{ color: SCORE_COLOURS[scoreValue] }}>
-              {SCORE_LABELS[scoreValue]}
-            </p>
-          )}
-          <textarea
-            placeholder="Optional comment…"
-            value={scoreComment}
-            onChange={e => setScoreComment(e.target.value)}
-            rows={2}
-            className="w-full rounded-xl px-3 py-2 text-xs resize-none outline-none mb-3"
-            style={{ backgroundColor: 'var(--c-bg-subtle)', border: '1px solid var(--c-border-soft)', color: 'var(--c-text)' }}
-          />
-          <div className="flex gap-2">
-            <button onClick={saveScore} disabled={scoreValue == null || saving}
-              className="flex-1 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40"
-              style={{ backgroundColor: 'var(--c-green-dark)', color: '#FAF7F0' }}>
-              {saving ? 'Saving…' : 'Save Score'}
-            </button>
-            <button onClick={() => setScoreCell(null)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold"
-              style={{ backgroundColor: 'var(--c-bg-subtle)', color: 'var(--c-text-muted)' }}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+        ))}
+      </div>
 
       {/* Grid */}
       <div className="flex-1 overflow-auto scroll-container">
@@ -190,101 +160,238 @@ export default function DawrLog({ studentId, studentName }: Props) {
           <div className="flex justify-center mt-12"><Spinner size={28} color="var(--c-gold)" /></div>
         ) : (
           <div style={{ overflowX: 'auto', paddingBottom: 16 }}>
-            <table style={{ borderCollapse: 'collapse', fontSize: 11, minWidth: 'max-content' }}>
-              {/* Column headers */}
+            <table style={{ borderCollapse: 'collapse', minWidth: 'max-content' }}>
+              {/* Column headers — alternating green/blue per Juz */}
               <thead>
                 <tr>
-                  <th style={{ minWidth: 36, padding: 4, position: 'sticky', left: 0, zIndex: 2, backgroundColor: 'var(--c-bg)', borderBottom: '1px solid var(--c-border)' }} />
-                  {Array.from({ length: 30 }, (_, i) => i + 1).map(juz => (
-                    QUARTERS.map((q, qi) => (
+                  <th style={{
+                    minWidth: 110, padding: '6px 8px', position: 'sticky', left: 0, zIndex: 3,
+                    backgroundColor: 'var(--c-bg)', borderBottom: '1px solid var(--c-border)',
+                    textAlign: 'left', fontSize: 10, fontWeight: 700, color: 'var(--c-text-muted)',
+                  }}>
+                    Student
+                  </th>
+                  {Array.from({ length: 30 }, (_, i) => i + 1).map(juz => {
+                    const isOdd = juz % 2 === 1;
+                    const bg = isOdd ? '#99FFAC' : '#99CEFF';
+                    const bd = isOdd ? '#5FCC78' : '#5FA3E5';
+                    const tx = isOdd ? '#0B3D17' : '#0B2E4D';
+                    return QUARTERS.map((q, qi) => (
                       <th key={`${juz}-${q}`}
                         style={{
-                          minWidth: 38, maxWidth: 38, padding: '3px 2px',
+                          minWidth: 44, maxWidth: 44, padding: '4px 2px',
                           textAlign: 'center', verticalAlign: 'bottom',
-                          backgroundColor: '#C6EFCE', color: '#1A3A00',
-                          border: '1px solid #9BD4A6',
-                          borderLeft: qi === 0 ? '2px solid #0F4C3A' : undefined,
+                          backgroundColor: bg, color: tx,
+                          borderColor: bd,
+                          borderWidth: 1, borderStyle: 'solid',
+                          borderLeft: qi === 0 ? `2.5px solid ${bd}` : undefined,
                         }}>
-                        <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', display: 'block', fontSize: 7.5, fontWeight: 600, padding: '4px 0', whiteSpace: 'nowrap' }}>
-                          {qi === 0 ? `J${juz}` : ''} {QUARTER_DISPLAY[q]}
+                        <span style={{
+                          writingMode: 'vertical-rl', transform: 'rotate(180deg)',
+                          display: 'block',
+                          fontSize: qi === 0 ? 11 : 10,
+                          fontWeight: qi === 0 ? 800 : 600,
+                          padding: '4px 0', whiteSpace: 'nowrap',
+                        }}>
+                          {qi === 0 ? `Juz ${juz}` : `Q${qi + 1}`}
                         </span>
                       </th>
-                    ))
-                  ))}
+                    ));
+                  })}
                 </tr>
               </thead>
 
               <tbody>
-                {/* Date row */}
-                <tr>
-                  <td style={{ position: 'sticky', left: 0, zIndex: 2, backgroundColor: 'var(--c-bg-card)', padding: '3px 6px', fontSize: 8, fontWeight: 600, color: 'var(--c-text-muted)', whiteSpace: 'nowrap', borderBottom: '1px solid var(--c-border)' }}>
-                    Date
-                  </td>
-                  {Array.from({ length: 30 }, (_, i) => i + 1).map(juz =>
-                    QUARTERS.map((q, qi) => {
-                      const cell = cellMap[`${juz}:${q}`];
-                      return (
-                        <td key={`date-${juz}-${q}`}
-                          onClick={() => cell && openScore(cell)}
-                          style={{
-                            minWidth: 38, maxWidth: 38, height: 28,
-                            textAlign: 'center', verticalAlign: 'middle',
-                            borderLeft: qi === 0 ? '2px solid #0F4C3A' : '1px solid var(--c-border)',
-                            borderBottom: '1px solid var(--c-border)',
-                            backgroundColor: cell?.loggedDate ? 'rgba(15,76,58,.10)' : 'var(--c-bg-subtle)',
-                            cursor: isUstadh && cell ? 'pointer' : 'default',
-                            fontSize: 7, fontWeight: 600, color: 'var(--c-text-muted)',
-                            overflow: 'hidden', whiteSpace: 'nowrap',
-                          }}>
-                          {cell?.loggedDate ? shortDate(cell.loggedDate) : ''}
+                {isMultiStudent ? (
+                  allStudents.map(student => (
+                    <StudentRows
+                      key={student.id}
+                      student={student}
+                      cellMap={studentMaps[student.id] ?? {}}
+                    />
+                  ))
+                ) : (
+                  /* ── Single-student rows: one Date+Score pair per cycle ── */
+                  Array.from({ length: maxCycles }, (_, ci) => (
+                    <Fragment key={ci}>
+                      {/* Date row */}
+                      <tr>
+                        <td style={{
+                          position: 'sticky', left: 0, zIndex: 2,
+                          backgroundColor: 'var(--c-bg-card)', padding: '3px 8px',
+                          fontSize: 10, fontWeight: 700, color: 'var(--c-text-muted)',
+                          whiteSpace: 'nowrap', borderBottom: '1px solid var(--c-border)',
+                        }}>
+                          Date
                         </td>
-                      );
-                    })
-                  )}
-                </tr>
+                        {Array.from({ length: 30 }, (_, i) => i + 1).map(juz =>
+                          QUARTERS.map((q, qi) => {
+                            const cycle = cellMap[`${juz}:${q}`]?.cycles[ci];
+                            return (
+                              <td key={`date-${ci}-${juz}-${q}`}
+                                style={{
+                                  minWidth: 44, maxWidth: 44, height: 28,
+                                  textAlign: 'center', verticalAlign: 'middle',
+                                  borderLeft: qi === 0 ? '2.5px solid var(--c-border)' : '1px solid var(--c-border)',
+                                  borderBottom: '1px solid var(--c-border)',
+                                  backgroundColor: cycle?.loggedDate ? 'rgba(15,76,58,.08)' : 'var(--c-bg-subtle)',
+                                  fontSize: 8, fontWeight: 600, color: 'var(--c-text-muted)',
+                                }}>
+                                {cycle?.loggedDate ? shortDate(cycle.loggedDate) : ''}
+                              </td>
+                            );
+                          })
+                        )}
+                      </tr>
 
-                {/* Score row */}
-                <tr>
-                  <td style={{ position: 'sticky', left: 0, zIndex: 2, backgroundColor: 'var(--c-bg-card)', padding: '3px 6px', fontSize: 8, fontWeight: 600, color: 'var(--c-text-muted)', whiteSpace: 'nowrap' }}>
-                    Score
-                  </td>
-                  {Array.from({ length: 30 }, (_, i) => i + 1).map(juz =>
-                    QUARTERS.map((q, qi) => {
-                      const cell = cellMap[`${juz}:${q}`];
-                      const bg   = cell?.score != null ? SCORE_COLOURS[cell.score] : 'var(--c-bg-card)';
-                      return (
-                        <td key={`score-${juz}-${q}`}
-                          onClick={() => cell && openScore(cell)}
-                          style={{
-                            minWidth: 38, maxWidth: 38, height: 40,
-                            textAlign: 'center', verticalAlign: 'middle',
-                            borderLeft: qi === 0 ? '2px solid #0F4C3A' : '1px solid var(--c-border)',
-                            backgroundColor: bg,
-                            cursor: isUstadh && cell?.loggedDate ? 'pointer' : 'default',
-                            transition: 'filter .15s',
-                          }}>
-                          {cell?.score != null ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                              <span style={{ fontSize: 15, fontWeight: 800, color: '#FFF', lineHeight: 1 }}>
-                                {cell.score}
-                              </span>
-                              <span style={{ fontSize: 6.5, fontWeight: 600, color: 'rgba(255,255,255,.75)', lineHeight: 1 }}>
-                                {SCORE_LABELS[cell.score]?.slice(0,6)}
-                              </span>
-                            </div>
-                          ) : cell?.loggedDate && isUstadh ? (
-                            <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: 'var(--c-gold)', margin: 'auto' }} />
-                          ) : null}
+                      {/* Score row */}
+                      <tr>
+                        <td style={{
+                          position: 'sticky', left: 0, zIndex: 2,
+                          backgroundColor: 'var(--c-bg-card)', padding: '3px 8px',
+                          fontSize: 10, fontWeight: 700, color: 'var(--c-text-muted)',
+                          whiteSpace: 'nowrap',
+                          borderBottom: ci < maxCycles - 1 ? '1px solid var(--c-border)' : undefined,
+                        }}>
+                          Score /7
                         </td>
-                      );
-                    })
-                  )}
-                </tr>
+                        {Array.from({ length: 30 }, (_, i) => i + 1).map(juz =>
+                          QUARTERS.map((q, qi) => {
+                            const cycle = cellMap[`${juz}:${q}`]?.cycles[ci];
+                            const sc = cycle?.score;
+                            const col = sc != null ? SCORE_COLORS[sc] : null;
+                            return (
+                              <td key={`score-${ci}-${juz}-${q}`}
+                                onClick={() => {
+                                  if (!isUstadh && cycle?.loggedDate && !sc) {
+                                    toast('Score pending from Ustadh', { icon: '⏳' });
+                                  }
+                                }}
+                                style={{
+                                  minWidth: 44, maxWidth: 44, height: 36,
+                                  textAlign: 'center', verticalAlign: 'middle',
+                                  borderLeft: qi === 0 ? '2.5px solid var(--c-border)' : '1px solid var(--c-border)',
+                                  borderBottom: ci < maxCycles - 1 ? '1px solid var(--c-border)' : undefined,
+                                  backgroundColor: col ? col.bg : 'var(--c-bg-card)',
+                                  color: col ? col.text : 'var(--c-text-faint)',
+                                  cursor: 'default',
+                                  fontSize: 15, fontWeight: 800,
+                                  transition: 'filter .15s',
+                                }}>
+                                {sc != null ? sc : ''}
+                              </td>
+                            );
+                          })
+                        )}
+                      </tr>
+                    </Fragment>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* Score modal removed — Ustadh scores via Enter Scores tab on student page */}
     </div>
+  );
+}
+
+/* ── Multi-student row block (N cycle pairs per student) ── */
+function StudentRows({ student, cellMap }: {
+  student:  StudentDawrData;
+  cellMap:  Record<string, DawrCell>;
+}) {
+  const cells = Object.values(cellMap);
+  const maxCycles = Math.max(1, ...cells.map(c => c.cycles.length));
+
+  return (
+    <>
+      {Array.from({ length: maxCycles }, (_, ci) => (
+        <Fragment key={ci}>
+          {/* Date row — cycle ci */}
+          <tr>
+            {ci === 0 && (
+              <td rowSpan={maxCycles * 2} style={{
+                position: 'sticky', left: 0, zIndex: 2,
+                backgroundColor: 'var(--c-bg-card)',
+                padding: '6px 8px', verticalAlign: 'middle',
+                borderBottom: '2px solid var(--c-border)',
+                minWidth: 110,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {student.avatarUrl ? (
+                    <img src={student.avatarUrl} alt={student.name}
+                      style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                  ) : (
+                    <div style={{
+                      width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                      backgroundColor: avatarBg(student.name), color: '#FFF',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 700,
+                    }}>
+                      {getInitials(student.name)}
+                    </div>
+                  )}
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {student.name}
+                    </div>
+                    <div style={{ fontSize: 9, color: 'var(--c-text-faint)' }}>student</div>
+                  </div>
+                </div>
+              </td>
+            )}
+            {Array.from({ length: 30 }, (_, i) => i + 1).map(juz =>
+              QUARTERS.map((q, qi) => {
+                const cycle = cellMap[`${juz}:${q}`]?.cycles[ci];
+                return (
+                  <td key={`d-${ci}-${juz}-${q}`}
+                    style={{
+                      minWidth: 44, maxWidth: 44, height: 24,
+                      textAlign: 'center', verticalAlign: 'middle',
+                      borderLeft: qi === 0 ? '2.5px solid var(--c-border)' : '1px solid var(--c-border)',
+                      borderBottom: '1px solid var(--c-border)',
+                      backgroundColor: cycle?.loggedDate ? 'rgba(15,76,58,.08)' : 'var(--c-bg-subtle)',
+                      fontSize: 8, fontWeight: 600, color: 'var(--c-text-muted)',
+                    }}>
+                    {cycle?.loggedDate ? (
+                      <span style={{ fontSize: 7 }}>{shortDate(cycle.loggedDate)}</span>
+                    ) : ''}
+                  </td>
+                );
+              })
+            )}
+          </tr>
+
+          {/* Score row — cycle ci */}
+          <tr>
+            {Array.from({ length: 30 }, (_, i) => i + 1).map(juz =>
+              QUARTERS.map((q, qi) => {
+                const cycle = cellMap[`${juz}:${q}`]?.cycles[ci];
+                const sc = cycle?.score;
+                const col = sc != null ? SCORE_COLORS[sc] : null;
+                return (
+                  <td key={`s-${ci}-${juz}-${q}`}
+                    style={{
+                      minWidth: 44, maxWidth: 44, height: 32,
+                      textAlign: 'center', verticalAlign: 'middle',
+                      borderLeft: qi === 0 ? '2.5px solid var(--c-border)' : '1px solid var(--c-border)',
+                      borderBottom: ci === maxCycles - 1 ? '2px solid var(--c-border)' : '1px solid var(--c-border)',
+                      backgroundColor: col ? col.bg : 'var(--c-bg-card)',
+                      color: col ? col.text : 'var(--c-text-faint)',
+                      cursor: 'default',
+                      fontSize: 14, fontWeight: 800,
+                    }}>
+                    {sc != null ? sc : ''}
+                  </td>
+                );
+              })
+            )}
+          </tr>
+        </Fragment>
+      ))}
+    </>
   );
 }

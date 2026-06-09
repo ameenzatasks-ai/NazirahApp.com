@@ -1,6 +1,22 @@
+/**
+ * WelcomeScreen — matches The Hifz App design prototype.
+ *
+ * Layout (top → bottom, evenly spaced, no overlapping):
+ *   1. Arch illustration with Quran rahl
+ *   2. حفظ calligraphy in gold
+ *   3. Gold divider line
+ *   4. "THE HIFZ APP" title
+ *   5. Description paragraph
+ *   6. "Continue with Google" button
+ *   7. "or" divider
+ *   8. "Log in with email" button (outline)
+ *   9. Terms text
+ *  10. "READ · RECITE · REFLECT" tagline
+ */
+
 /* ── Arch illustration ───────────────────────────────────────────
    A minimal Islamic pointed-arch SVG with a Quran on a rahl
-   (book stand) inside — inspired by the Nazirah logo.
+   (book stand) inside.
    ─────────────────────────────────────────────────────────────── */
 function ArchIllustration() {
   return (
@@ -44,13 +60,6 @@ function ArchIllustration() {
 
       {/* Quran book — left page */}
       <path
-        d="M72 210 Q90 170 110 168"
-        stroke="#0F4C3A"
-        strokeWidth="2.5"
-        fill="rgba(184,134,42,0.15)"
-        strokeLinejoin="round"
-      />
-      <path
         d="M72 210 L80 175 Q95 162 110 168 Z"
         fill="rgba(184,134,42,0.18)"
         stroke="#0F4C3A"
@@ -84,15 +93,15 @@ function ArchIllustration() {
   );
 }
 
-/* ── Gold diamond divider ────────────────────────────────────── */
+/* ── Gold line divider ───────────────────────────────────────── */
 function GoldDivider() {
   return (
-    <div className="flex items-center gap-2 justify-center">
-      <div style={{ width: 40, height: 1, backgroundColor: '#B8862A', opacity: 0.4 }} />
-      <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
-        <polygon points="4,0 8,4 4,8 0,4" fill="#B8862A" />
+    <div className="flex items-center gap-2.5 justify-center">
+      <div style={{ width: 50, height: 1, backgroundColor: '#B8862A', opacity: 0.35 }} />
+      <svg width="6" height="6" viewBox="0 0 6 6" aria-hidden="true">
+        <polygon points="3,0 6,3 3,6 0,3" fill="#B8862A" opacity="0.5" />
       </svg>
-      <div style={{ width: 40, height: 1, backgroundColor: '#B8862A', opacity: 0.4 }} />
+      <div style={{ width: 50, height: 1, backgroundColor: '#B8862A', opacity: 0.35 }} />
     </div>
   );
 }
@@ -100,60 +109,65 @@ function GoldDivider() {
 export default function WelcomeScreen() {
   return (
     <div
-      className="min-h-screen flex flex-col items-center pt-safe pb-safe"
+      className="fixed inset-0 flex flex-col items-center overflow-y-auto pt-safe pb-safe"
       style={{ backgroundColor: '#FAF7F0' }}
     >
-      {/* Top branding */}
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-4">
-        {/* Gold Arabic نَظِيرَة calligraphy */}
+      {/* Top: Arch + Calligraphy + Title + Description — centered vertically */}
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-8" style={{ gap: 20 }}>
+        {/* Arch illustration */}
+        <div className="animate-fade-in-up" style={{ width: 140, height: 165 }}>
+          <ArchIllustration />
+        </div>
+
+        {/* حفظ calligraphy */}
         <p
           className="font-amiri leading-none animate-fade-in-up"
           style={{
             color: '#B8862A',
-            fontSize: 76,
+            fontSize: 72,
             textShadow: '0 1px 0 rgba(184,134,42,0.15)',
+            marginTop: -4,
           }}
           lang="ar"
         >
-          ناظره
+          حفظ
         </p>
 
-        {/* Arch illustration */}
-        <div className="animate-fade-in-up-delay" style={{ width: 160, height: 188 }}>
-          <ArchIllustration />
+        {/* Gold divider */}
+        <div className="animate-fade-in-up-delay">
+          <GoldDivider />
         </div>
 
         {/* App name */}
-        <div className="animate-fade-in-up-delay2 flex flex-col items-center gap-3">
-          <h1
-            className="font-inter font-bold tracking-[0.18em] uppercase text-sm"
-            style={{ color: '#0F4C3A' }}
-          >
-            The Nazirah App
-          </h1>
-          <GoldDivider />
-          <p
-            className="font-inter text-xs tracking-[0.22em] uppercase"
-            style={{ color: '#B8862A' }}
-          >
-            Read · Recite · Reflect
-          </p>
-        </div>
+        <h1
+          className="font-inter font-bold tracking-[0.22em] uppercase text-sm animate-fade-in-up-delay"
+          style={{ color: '#0F4C3A' }}
+        >
+          The Hifz App
+        </h1>
+
+        {/* Description */}
+        <p
+          className="text-sm leading-relaxed animate-fade-in-up-delay2 max-w-xs"
+          style={{ color: 'rgba(15,76,58,0.55)' }}
+        >
+          Track your daily Sabaq, Sabaq Para & Dawr — memorise the Qur'an together with your Ustadh.
+        </p>
       </div>
 
-      {/* Auth button */}
+      {/* Bottom: Auth buttons */}
       <div
-        className="animate-fade-in-up-delay2 w-full px-8 pb-12 flex flex-col items-center gap-3"
-        style={{ maxWidth: 380 }}
+        className="animate-fade-in-up-delay2 w-full px-8 pb-8 flex flex-col items-center"
+        style={{ maxWidth: 400, gap: 12 }}
       >
+        {/* Continue with Google */}
         <a
           href="/api/auth/google"
-          className="w-full flex items-center justify-center gap-3 rounded-[28px] py-3.5 px-6 font-inter font-semibold text-sm transition-all active:scale-95"
+          className="w-full flex items-center justify-center gap-3 rounded-2xl py-4 px-6 font-inter font-semibold text-sm transition-all active:scale-95"
           style={{
             backgroundColor: '#0F4C3A',
             color: '#FAF7F0',
-            maxWidth: 320,
-            boxShadow: '0 2px 12px rgba(15,76,58,0.25)',
+            boxShadow: '0 2px 16px rgba(15,76,58,0.25)',
           }}
         >
           <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -165,8 +179,42 @@ export default function WelcomeScreen() {
           Continue with Google
         </a>
 
-        <p className="text-center text-xs mt-1" style={{ color: 'rgba(15,76,58,0.35)' }}>
-          By continuing you agree to our Terms of Service
+        {/* "or" divider */}
+        <div className="flex items-center gap-3 w-full">
+          <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(15,76,58,0.12)' }} />
+          <span className="text-xs" style={{ color: 'rgba(15,76,58,0.35)' }}>or</span>
+          <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(15,76,58,0.12)' }} />
+        </div>
+
+        {/* Log in with email — placeholder, Google-only for now */}
+        <button
+          className="w-full flex items-center justify-center rounded-2xl py-4 px-6 font-inter font-semibold text-sm transition-all active:scale-95 opacity-40 cursor-not-allowed"
+          style={{
+            backgroundColor: 'transparent',
+            color: '#0F4C3A',
+            border: '1.5px solid rgba(15,76,58,0.18)',
+          }}
+          disabled
+          title="Only Google sign-in is available right now"
+        >
+          Log in with email
+        </button>
+
+        <p className="text-center text-[11px]" style={{ color: 'rgba(15,76,58,0.4)', marginTop: -4 }}>
+          Google sign-in only for now
+        </p>
+
+        {/* Terms text */}
+        <p className="text-center text-[11px] mt-1" style={{ color: 'rgba(15,76,58,0.35)' }}>
+          By continuing you agree to our Terms of Service & Privacy Policy
+        </p>
+
+        {/* Tagline */}
+        <p
+          className="font-inter text-xs tracking-[0.22em] uppercase font-bold mt-2"
+          style={{ color: '#B8862A' }}
+        >
+          Read · Recite · Reflect
         </p>
       </div>
     </div>

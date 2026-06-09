@@ -16,10 +16,10 @@ const QUARTERS = ['1/4', '1/2', '3/4', 'full'] as const;
 type Quarter = typeof QUARTERS[number];
 
 const QUARTER_LABELS: Record<Quarter, string> = {
-  '1/4':  '¼',
-  '1/2':  '½',
-  '3/4':  '¾',
-  'full': 'Full',
+  '1/4':  '1/4',
+  '1/2':  '2/4',
+  '3/4':  '3/4',
+  'full': '4/4',
 };
 
 /* Score 1–7 display labels */
@@ -55,72 +55,72 @@ function ustadhTeaches(ustadhId: number, studentId: number): boolean {
     .get(ustadhId, studentId);
 }
 
-function buildGrid(studentId: number) {
-  const rows = db.prepare(
-    `SELECT juz_number, quarter, logged_date, score, score_label, comment,
-            scored_by, scored_at
-     FROM hifz_dawr_log WHERE student_id = ?`,
-  ).all(studentId) as any[];
+interface DawrCycleRow {
+  loggedDate:  string;
+  score:       number | null;
+  scoreLabel:  string | null;
+  scoreColour: string | null;
+  comment:     string | null;
+  scoredAt:    string | null;
+}
 
-  // Map keyed by "juz:quarter"
-  const map: Record<string, any> = {};
-  for (const r of rows) map[`${r.juz_number}:${r.quarter}`] = r;
+function buildGrid(studentId: number, classId?: number | null) {
+  const rows = classId != null
+    ? db.prepare(
+        `SELECT juz_number, quarter, logged_date, score, score_label, comment, scored_at
+         FROM hifz_dawr_log WHERE student_id = ? AND class_id = ?
+         ORDER BY juz_number ASC, quarter ASC, logged_date ASC`,
+      ).all(studentId, classId) as any[]
+    : db.prepare(
+        `SELECT juz_number, quarter, logged_date, score, score_label, comment, scored_at
+         FROM hifz_dawr_log WHERE student_id = ? AND class_id IS NULL
+         ORDER BY juz_number ASC, quarter ASC, logged_date ASC`,
+      ).all(studentId) as any[];
+
+  // Map keyed by "juz:quarter" → array of cycle rows (one per logged_date)
+  const map: Record<string, any[]> = {};
+  for (const r of rows) {
+    const key = `${r.juz_number}:${r.quarter}`;
+    if (!map[key]) map[key] = [];
+    map[key].push(r);
+  }
 
   const grid: Array<{
-    juz: number;
-    quarter: Quarter;
+    juz:          number;
+    quarter:      Quarter;
     quarterLabel: string;
-    loggedDate: string | null;
-    score: number | null;
-    scoreLabel: string | null;
-    scoreColour: string | null;
-    comment: string | null;
-    scoredAt: string | null;
+    cycles:       DawrCycleRow[];
   }> = [];
 
   for (let juz = 1; juz <= 30; juz++) {
     for (const q of QUARTERS) {
-      const cell = map[`${juz}:${q}`];
+      const cycleRows = map[`${juz}:${q}`] ?? [];
       grid.push({
         juz,
         quarter:      q,
         quarterLabel: QUARTER_LABELS[q],
-        loggedDate:   cell?.logged_date ?? null,
-        score:        cell?.score ?? null,
-        scoreLabel:   cell?.score_label ?? null,
-        scoreColour:  cell?.score != null ? SCORE_COLOURS[cell.score] : null,
-        comment:      cell?.comment ?? null,
-        scoredAt:     cell?.scored_at ?? null,
+        cycles: cycleRows.map(c => ({
+          loggedDate:  c.logged_date,
+          score:       c.score ?? null,
+          scoreLabel:  c.score_label ?? null,
+          scoreColour: c.score != null ? SCORE_COLOURS[c.score] : null,
+          comment:     c.comment ?? null,
+          scoredAt:    c.scored_at ?? null,
+        })),
       });
     }
   }
   return grid;
 }
 
-/* ── Prepared statements ─────────────────────────────────────── */
-const stmtScore = db.prepare(`
-  INSERT INTO hifz_dawr_log
-    (student_id, juz_number, quarter, logged_date,
-     score, score_label, comment, scored_by, scored_at)
-  VALUES (?,?,?,COALESCE((
-    SELECT logged_date FROM hifz_dawr_log
-    WHERE student_id=? AND juz_number=? AND quarter=?
-  ), date('now')),?,?,?,?,datetime('now'))
-  ON CONFLICT(student_id, juz_number, quarter)
-  DO UPDATE SET
-    score       = excluded.score,
-    score_label = excluded.score_label,
-    comment     = excluded.comment,
-    scored_by   = excluded.scored_by,
-    scored_at   = excluded.scored_at
-`);
 
 /* ── Routes ──────────────────────────────────────────────────── */
 
 /* Own grid */
 router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
+  const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : null;
   res.json({
-    grid:        buildGrid(req.user!.id),
+    grid:        buildGrid(req.user!.id, classId),
     scoreLabels: SCORE_LABELS,
     scoreColours: SCORE_COLOURS,
   });
@@ -137,53 +137,123 @@ router.get(
       res.status(403).json({ error: 'Not your student' });
       return;
     }
+    const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : null;
     res.json({
-      grid:        buildGrid(studentId),
+      grid:        buildGrid(studentId, classId),
       scoreLabels: SCORE_LABELS,
       scoreColours: SCORE_COLOURS,
     });
   },
 );
 
-/* Ustadh: score a cell */
+/* Ustadh: score a cell
+ * Quarter is passed in the request body (not the URL path) to avoid
+ * slash-encoding issues with values like "1/4", "1/2", "3/4".
+ */
 router.patch(
-  '/:juz/:quarter',
+  '/:juz',
   authenticate,
   requireRole('ustadh'),
   (req: AuthRequest, res: Response): void => {
     const juz     = parseInt(req.params.juz, 10);
-    const quarter = req.params.quarter as Quarter;
 
-    if (isNaN(juz) || juz < 1 || juz > 30 || !QUARTERS.includes(quarter)) {
-      res.status(400).json({ error: 'Invalid juz or quarter' });
+    if (isNaN(juz) || juz < 1 || juz > 30) {
+      res.status(400).json({ error: 'Invalid juz' });
       return;
     }
 
     const parsed = z.object({
-      studentId: z.number().int(),
-      score:     z.number().int().min(1).max(7),
-      comment:   z.string().max(500).optional(),
+      quarter:    z.enum(['1/4', '1/2', '3/4', 'full']),
+      studentId:  z.number().int(),
+      classId:    z.number().int().positive().optional(),
+      loggedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      score:      z.number().int().min(1).max(7),
+      comment:    z.string().max(500).optional(),
     }).safeParse(req.body);
 
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.errors[0].message });
       return;
     }
-    const { studentId, score, comment } = parsed.data;
+    const { quarter: resolvedQuarter, studentId, classId, loggedDate, score, comment } = parsed.data;
 
     if (!ustadhTeaches(req.user!.id, studentId)) {
       res.status(403).json({ error: 'Not your student' });
       return;
     }
 
-    stmtScore.run(
-      studentId, juz, quarter,
-      studentId, juz, quarter,  // for COALESCE sub-select
-      score, SCORE_LABELS[score], comment ?? null,
-      req.user!.id,
+    // Identify which cycle to score: use provided loggedDate or fall back to most recent
+    let ld: string | null = loggedDate ?? null;
+    if (!ld) {
+      const latest = db.prepare(`
+        SELECT logged_date FROM hifz_dawr_log
+        WHERE student_id = ? AND juz_number = ? AND quarter = ?
+          AND (class_id = ? OR (class_id IS NULL AND ? IS NULL))
+        ORDER BY logged_date DESC LIMIT 1
+      `).get(studentId, juz, resolvedQuarter, classId ?? null, classId ?? null) as any;
+      ld = latest?.logged_date ?? null;
+    }
+
+    if (!ld) {
+      res.status(404).json({ error: 'No Dawr submission found for this cell' });
+      return;
+    }
+
+    db.prepare(`
+      UPDATE hifz_dawr_log
+      SET score = ?, score_label = ?, comment = ?, scored_by = ?, scored_at = datetime('now')
+      WHERE student_id = ? AND juz_number = ? AND quarter = ? AND logged_date = ?
+        AND (class_id = ? OR (class_id IS NULL AND ? IS NULL))
+    `).run(
+      score, SCORE_LABELS[score], comment ?? null, req.user!.id,
+      studentId, juz, resolvedQuarter, ld,
+      classId ?? null, classId ?? null,
     );
 
     res.json({ ok: true, scoreLabel: SCORE_LABELS[score] });
+  },
+);
+
+/* Ustadh: all students' grids (for multi-student Dawr Log view) */
+router.get(
+  '/all-students',
+  authenticate,
+  requireRole('ustadh'),
+  (req: AuthRequest, res: Response): void => {
+    const ustadhId = req.user!.id;
+    const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : null;
+
+    // Get all students enrolled in the specified class (or any class taught by this ustadh)
+    const students = classId
+      ? db.prepare(
+          `SELECT DISTINCT u.id, u.name, u.avatar_url
+           FROM users u
+           JOIN enrolments e ON e.student_id = u.id
+           JOIN classes c ON c.id = e.class_id
+           WHERE c.ustadh_id = ? AND c.id = ?
+           ORDER BY u.name`,
+        ).all(ustadhId, classId) as Array<{ id: number; name: string; avatar_url: string | null }>
+      : db.prepare(
+          `SELECT DISTINCT u.id, u.name, u.avatar_url
+           FROM users u
+           JOIN enrolments e ON e.student_id = u.id
+           JOIN classes c ON c.id = e.class_id
+           WHERE c.ustadh_id = ?
+           ORDER BY u.name`,
+        ).all(ustadhId) as Array<{ id: number; name: string; avatar_url: string | null }>;
+
+    const result = students.map(s => ({
+      id:        s.id,
+      name:      s.name,
+      avatarUrl: s.avatar_url,
+      grid:      buildGrid(s.id, classId),
+    }));
+
+    res.json({
+      students:     result,
+      scoreLabels:  SCORE_LABELS,
+      scoreColours: SCORE_COLOURS,
+    });
   },
 );
 

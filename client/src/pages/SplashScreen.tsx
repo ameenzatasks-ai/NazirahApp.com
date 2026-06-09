@@ -19,17 +19,24 @@ export default function SplashScreen() {
     let cancelled = false;
     (async () => {
       const result = await authPromise;
+
+      // Not logged in → go straight to welcome with no delay (no splash)
+      if (!result.ok) {
+        if (!cancelled) navigate('/welcome', { replace: true });
+        return;
+      }
+
+      // Logged in → honour the minimum brand-display time
       const elapsed = Date.now() - start;
       const remaining = Math.max(0, MIN_SPLASH_MS - elapsed);
       await new Promise(r => setTimeout(r, remaining));
       if (cancelled) return;
 
-      if (!result.ok) {
-        navigate('/welcome', { replace: true });
-      } else if (!result.user.role) {
+      if (!result.user.role) {
         navigate('/onboarding', { replace: true });
       } else {
-        navigate('/classes', { replace: true });
+        // Students land on classes list; Ustadh lands on home dashboard
+        navigate(result.user.role === 'student' ? '/classes' : '/home', { replace: true });
       }
     })();
 
@@ -38,11 +45,11 @@ export default function SplashScreen() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center pt-safe pb-safe"
+      className="fixed inset-0 flex flex-col items-center justify-center pt-safe pb-safe"
       style={{ backgroundColor: '#FAF7F0' }}
     >
       <div className="animate-fade-in-up flex flex-col items-center gap-6">
-        {/* Gold Arabic نَظِيرَة calligraphy */}
+        {/* Gold Arabic حِفْظ calligraphy */}
         <p
           className="font-amiri leading-none"
           style={{
@@ -52,7 +59,7 @@ export default function SplashScreen() {
           }}
           lang="ar"
         >
-          ناظره
+          حفظ
         </p>
 
         {/* Minimal arch silhouette */}
@@ -92,7 +99,7 @@ export default function SplashScreen() {
             className="font-inter font-bold tracking-[0.20em] uppercase text-xs"
             style={{ color: '#0F4C3A' }}
           >
-            The Nazirah App
+            The Hifz App
           </p>
           <div className="flex items-center gap-2">
             <div style={{ width: 28, height: 1, backgroundColor: '#B8862A', opacity: 0.5 }} />

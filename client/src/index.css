@@ -26,15 +26,15 @@
 }
 
 html[data-theme="dark"] {
-  --c-bg:           #0d0d0d;
-  --c-bg-card:      #111111;
-  --c-bg-nav:       #111111;
-  --c-bg-subtle:    rgba(255,255,255,0.05);
-  --c-border:       rgba(255,255,255,0.06);
-  --c-border-soft:  rgba(255,255,255,0.10);
+  --c-bg:           #091A14;
+  --c-bg-card:      #0E2219;
+  --c-bg-nav:       #0E2219;
+  --c-bg-subtle:    rgba(200,240,220,0.05);
+  --c-border:       rgba(200,240,220,0.08);
+  --c-border-soft:  rgba(200,240,220,0.12);
   --c-text:         #FAF7F0;
-  --c-text-muted:   rgba(250,247,240,0.45);
-  --c-text-faint:   rgba(250,247,240,0.25);
+  --c-text-muted:   rgba(250,247,240,0.50);
+  --c-text-faint:   rgba(250,247,240,0.28);
   --c-gold:         #C49A2A;
   --c-gold-bg:      rgba(196,154,42,0.12);
   --c-green-dark:   #0F4C3A;
@@ -43,9 +43,19 @@ html[data-theme="dark"] {
 }
 
 @layer base {
-  html, body, #root {
+  html, body {
     height: 100%;
     overscroll-behavior: none;
+  }
+
+  /* #root is the scroll container for all protected pages.
+     overflow-y: auto lets mouse-wheel events scroll the content.
+     Pages that opt out (WelcomeScreen, SplashScreen) use
+     `fixed inset-0` so they bypass this container entirely. */
+  #root {
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   body {
@@ -56,6 +66,14 @@ html[data-theme="dark"] {
     -webkit-font-smoothing: antialiased;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
+}
+
+/* ── Left sidebar layout ────────────────────────────────────────
+   On desktop (md+) the left sidebar is visible and pages are shifted
+   right by --sidebar-w. On mobile, bottom nav is used instead.
+   ─────────────────────────────────────────────────────────────── */
+:root {
+  --sidebar-w: 180px;
 }
 
 @layer utilities {
@@ -83,6 +101,20 @@ html[data-theme="dark"] {
   .text-faint      { color: var(--c-text-faint); }
   .text-gold       { color: var(--c-gold); }
   .border-theme    { border-color: var(--c-border); }
+}
+
+/* On desktop, offset all page content to the right of the sidebar */
+@media (min-width: 768px) {
+  #root {
+    padding-left: var(--sidebar-w);
+  }
+  /* Remove bottom padding for nav on desktop since sidebar replaces it */
+  .pb-layout {
+    padding-bottom: 0;
+  }
+  .pb-class-layout {
+    padding-bottom: 0;
+  }
 }
 
 /* Scrollable containers */

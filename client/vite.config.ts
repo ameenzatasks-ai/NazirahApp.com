@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'The Nazirah App',
-        short_name: 'Nazirah',
-        description: 'Track your Quran reading journey',
+        name: 'The Hifz App',
+        short_name: 'Hifz',
+        description: 'Track your daily Sabaq, Sabaq Para & Dawr',
         theme_color: '#0F4C3A',
         background_color: '#FAF7F0',
         display: 'standalone',

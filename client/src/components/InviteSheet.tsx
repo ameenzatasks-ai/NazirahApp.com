@@ -65,7 +65,7 @@ export default function InviteSheet({ open, onClose, classId, className, joinCod
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Join ${className} on The Nazirah App`,
+          title: `Join ${className} on The Hifz App`,
           text: sentMessage,
         });
       } catch { /* user cancelled */ }

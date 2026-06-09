@@ -148,6 +148,7 @@ export function runMigrations(): void {
     CREATE TABLE IF NOT EXISTS hifz_daily_tasks (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       student_id   INTEGER NOT NULL REFERENCES users(id),
+      class_id     INTEGER REFERENCES classes(id),
       task_date    TEXT    NOT NULL,
       task_type    TEXT    NOT NULL
                            CHECK(task_type IN ('sabaq','sabaq_para','dawr')),
@@ -158,11 +159,12 @@ export function runMigrations(): void {
       submitted_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Dawr log grid: one row per (student, juz, quarter)
+    -- Dawr log grid: one row per (student, class, juz, quarter)
     -- Updated each time the student submits a matching Dawr task.
     CREATE TABLE IF NOT EXISTS hifz_dawr_log (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       student_id  INTEGER NOT NULL REFERENCES users(id),
+      class_id    INTEGER REFERENCES classes(id),
       juz_number  INTEGER NOT NULL CHECK(juz_number BETWEEN 1 AND 30),
       quarter     TEXT    NOT NULL CHECK(quarter IN ('1/4','1/2','3/4','full')),
       logged_date TEXT,
@@ -171,14 +173,182 @@ export function runMigrations(): void {
       comment     TEXT,
       scored_by   INTEGER REFERENCES users(id),
       scored_at   TEXT,
-      UNIQUE(student_id, juz_number, quarter)
+      UNIQUE(student_id, class_id, juz_number, quarter)
+    );
+
+    -- Ustadh scores for SP, Sabaq, Tajwid, Adab (one row per student, class, date)
+    CREATE TABLE IF NOT EXISTS hifz_task_scores (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id   INTEGER NOT NULL REFERENCES users(id),
+      class_id     INTEGER REFERENCES classes(id),
+      task_date    TEXT    NOT NULL,
+      sp_score     INTEGER CHECK(sp_score     BETWEEN 1 AND 7),
+      sabaq_score  INTEGER CHECK(sabaq_score  BETWEEN 1 AND 7),
+      tajwid_score INTEGER CHECK(tajwid_score BETWEEN 1 AND 7),
+      adab_score   INTEGER CHECK(adab_score   BETWEEN 1 AND 7),
+      comment      TEXT,
+      scored_by    INTEGER REFERENCES users(id),
+      scored_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(student_id, class_id, task_date)
     );
 
     CREATE INDEX IF NOT EXISTS idx_hdt_student
       ON hifz_daily_tasks(student_id, task_date DESC);
     CREATE INDEX IF NOT EXISTS idx_hdl_student
       ON hifz_dawr_log(student_id);
+    CREATE INDEX IF NOT EXISTS idx_hts_student
+      ON hifz_task_scores(student_id, task_date DESC);
+
+    -- SQLite treats NULL != NULL in UNIQUE constraints, so ON CONFLICT never fires
+    -- for rows where class_id IS NULL.  These partial indexes cover that case so
+    -- the targetless "ON CONFLICT DO UPDATE" upserts work correctly for both paths.
+    CREATE UNIQUE INDEX IF NOT EXISTS uidx_hdl_noclass
+      ON hifz_dawr_log(student_id, juz_number, quarter)
+      WHERE class_id IS NULL;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS uidx_hts_noclass
+      ON hifz_task_scores(student_id, task_date)
+      WHERE class_id IS NULL;
   `);
+
+  // ── Hifz class_id migration ────────────────────────────────────────────────
+  // Add class_id to hifz tables if not present, and recreate tables with
+  // updated UNIQUE constraints so data is isolated per class.
+  interface ColInfo { name: string; notnull: number }
+  const hdtCols = db.prepare("PRAGMA table_info(hifz_daily_tasks)").all() as ColInfo[];
+  if (hdtCols.length > 0 && !hdtCols.some(c => c.name === 'class_id')) {
+    console.log('Migrating Hifz tables to include class_id...');
+
+    // 1. hifz_daily_tasks — just add column (no unique constraint affected)
+    db.exec(`ALTER TABLE hifz_daily_tasks ADD COLUMN class_id INTEGER REFERENCES classes(id)`);
+
+    // 2. hifz_dawr_log — recreate with new UNIQUE(student_id, class_id, juz_number, quarter)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS hifz_dawr_log_v2 (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id  INTEGER NOT NULL REFERENCES users(id),
+        class_id    INTEGER REFERENCES classes(id),
+        juz_number  INTEGER NOT NULL CHECK(juz_number BETWEEN 1 AND 30),
+        quarter     TEXT    NOT NULL CHECK(quarter IN ('1/4','1/2','3/4','full')),
+        logged_date TEXT,
+        score       INTEGER CHECK(score BETWEEN 1 AND 7),
+        score_label TEXT,
+        comment     TEXT,
+        scored_by   INTEGER REFERENCES users(id),
+        scored_at   TEXT,
+        UNIQUE(student_id, class_id, juz_number, quarter)
+      )
+    `);
+    db.exec(`
+      INSERT OR IGNORE INTO hifz_dawr_log_v2
+        (id, student_id, class_id, juz_number, quarter, logged_date,
+         score, score_label, comment, scored_by, scored_at)
+      SELECT id, student_id, NULL, juz_number, quarter, logged_date,
+             score, score_label, comment, scored_by, scored_at
+      FROM hifz_dawr_log
+    `);
+    db.exec('DROP TABLE hifz_dawr_log');
+    db.exec('ALTER TABLE hifz_dawr_log_v2 RENAME TO hifz_dawr_log');
+
+    // 3. hifz_task_scores — recreate with UNIQUE(student_id, class_id, task_date)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS hifz_task_scores_v2 (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id   INTEGER NOT NULL REFERENCES users(id),
+        class_id     INTEGER REFERENCES classes(id),
+        task_date    TEXT    NOT NULL,
+        sp_score     INTEGER CHECK(sp_score     BETWEEN 1 AND 7),
+        sabaq_score  INTEGER CHECK(sabaq_score  BETWEEN 1 AND 7),
+        tajwid_score INTEGER CHECK(tajwid_score BETWEEN 1 AND 7),
+        adab_score   INTEGER CHECK(adab_score   BETWEEN 1 AND 7),
+        comment      TEXT,
+        scored_by    INTEGER REFERENCES users(id),
+        scored_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(student_id, class_id, task_date)
+      )
+    `);
+    db.exec(`
+      INSERT OR IGNORE INTO hifz_task_scores_v2
+        (id, student_id, class_id, task_date, sp_score, sabaq_score,
+         tajwid_score, adab_score, comment, scored_by, scored_at)
+      SELECT id, student_id, NULL, task_date, sp_score, sabaq_score,
+             tajwid_score, adab_score, comment, scored_by, scored_at
+      FROM hifz_task_scores
+    `);
+    db.exec('DROP TABLE hifz_task_scores');
+    db.exec('ALTER TABLE hifz_task_scores_v2 RENAME TO hifz_task_scores');
+
+    // Recreate indexes
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_hdt_class ON hifz_daily_tasks(student_id, class_id, task_date DESC);
+      CREATE INDEX IF NOT EXISTS idx_hdl_class ON hifz_dawr_log(student_id, class_id);
+      CREATE INDEX IF NOT EXISTS idx_hts_class ON hifz_task_scores(student_id, class_id, task_date DESC);
+    `);
+    console.log('Hifz class_id migration complete.');
+  }
+
+  // After migration, ensure class_id indexes exist (safe for fresh DBs too)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_hdt_class ON hifz_daily_tasks(student_id, class_id, task_date DESC);
+    CREATE INDEX IF NOT EXISTS idx_hdl_class ON hifz_dawr_log(student_id, class_id);
+    CREATE INDEX IF NOT EXISTS idx_hts_class ON hifz_task_scores(student_id, class_id, task_date DESC);
+  `);
+
+  // ── Dawr cycles migration ───────────────────────────────────────────────────
+  // Old: UNIQUE(student_id, class_id, juz_number, quarter) — one row per juz/quarter
+  // New: UNIQUE(student_id, class_id, juz_number, quarter, logged_date) — one row per cycle
+  const noClassIdxCols = db
+    .prepare('PRAGMA index_info(uidx_hdl_noclass)')
+    .all() as Array<{ name: string }>;
+  if (!noClassIdxCols.some(c => c.name === 'logged_date')) {
+    console.log('Migrating hifz_dawr_log to support dawr cycles...');
+    db.exec(`
+      CREATE TABLE hifz_dawr_log_cyc (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id  INTEGER NOT NULL REFERENCES users(id),
+        class_id    INTEGER REFERENCES classes(id),
+        juz_number  INTEGER NOT NULL CHECK(juz_number BETWEEN 1 AND 30),
+        quarter     TEXT    NOT NULL CHECK(quarter IN ('1/4','1/2','3/4','full')),
+        logged_date TEXT    NOT NULL DEFAULT (date('now')),
+        score       INTEGER CHECK(score BETWEEN 1 AND 7),
+        score_label TEXT,
+        comment     TEXT,
+        scored_by   INTEGER REFERENCES users(id),
+        scored_at   TEXT,
+        UNIQUE(student_id, class_id, juz_number, quarter, logged_date)
+      )
+    `);
+    db.exec(`
+      INSERT OR IGNORE INTO hifz_dawr_log_cyc
+        (id, student_id, class_id, juz_number, quarter, logged_date,
+         score, score_label, comment, scored_by, scored_at)
+      SELECT id, student_id, class_id, juz_number, quarter,
+             COALESCE(logged_date, date('now')),
+             score, score_label, comment, scored_by, scored_at
+      FROM hifz_dawr_log
+    `);
+    db.exec('DROP INDEX IF EXISTS uidx_hdl_noclass');
+    db.exec('DROP INDEX IF EXISTS idx_hdl_student');
+    db.exec('DROP INDEX IF EXISTS idx_hdl_class');
+    db.exec('DROP TABLE hifz_dawr_log');
+    db.exec('ALTER TABLE hifz_dawr_log_cyc RENAME TO hifz_dawr_log');
+    db.exec(`
+      CREATE UNIQUE INDEX uidx_hdl_noclass
+        ON hifz_dawr_log(student_id, juz_number, quarter, logged_date)
+        WHERE class_id IS NULL;
+      CREATE INDEX idx_hdl_student ON hifz_dawr_log(student_id);
+      CREATE INDEX idx_hdl_class   ON hifz_dawr_log(student_id, class_id);
+    `);
+    console.log('Dawr cycles migration complete.');
+  }
+
+  // ── Sabaq lines migration ───────────────────────────────────────────────────
+  // Add sabaq_lines column to hifz_daily_tasks if not present.
+  const hdtColsNow = db.prepare('PRAGMA table_info(hifz_daily_tasks)').all() as Array<{ name: string }>;
+  if (!hdtColsNow.some(c => c.name === 'sabaq_lines')) {
+    db.exec('ALTER TABLE hifz_daily_tasks ADD COLUMN sabaq_lines INTEGER');
+    console.log('Added sabaq_lines column to hifz_daily_tasks.');
+  }
 
   // ── status_history schema repair ───────────────────────────────────────────
   //
@@ -193,7 +363,6 @@ export function runMigrations(): void {
   // and repair manually.  The fix: recreate the table with the correct schema,
   // copying all surviving columns.
   //
-  interface ColInfo { name: string; notnull: number }
   const histCols = db.prepare("PRAGMA table_info(status_history)").all() as ColInfo[];
   const hasQuarterIndex = histCols.some(c => c.name === 'quarter_index');
   const toStatusNotNull  = histCols.some(c => c.name === 'to_status' && c.notnull === 1);

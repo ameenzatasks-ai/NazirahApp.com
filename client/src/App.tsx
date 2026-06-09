@@ -14,6 +14,7 @@ const SplashScreen     = lazy(() => import('./pages/SplashScreen'));
 const WelcomeScreen    = lazy(() => import('./pages/WelcomeScreen'));
 const AuthCallback     = lazy(() => import('./pages/AuthCallback'));
 const OnboardingScreen = lazy(() => import('./pages/OnboardingScreen'));
+const HomeDashboard    = lazy(() => import('./pages/HomeDashboard'));
 const ClassesList      = lazy(() => import('./pages/ClassesList'));
 const ProfileScreen    = lazy(() => import('./pages/ProfileScreen'));
 const ClassShell       = lazy(() => import('./pages/class/ClassShell'));
@@ -28,6 +29,9 @@ const HistoryPage          = lazy(() => import('./pages/HistoryPage'));
 const HistoryLogDetail     = lazy(() => import('./pages/class/NazirahLogDetail'));
 const HifzHome             = lazy(() => import('./pages/hifz/HifzHome'));
 const DawrLog              = lazy(() => import('./pages/hifz/DawrLog'));
+const StudentDawrLog       = lazy(() => import('./pages/hifz/StudentDawrLog'));
+const HifzHistoryPage      = lazy(() => import('./pages/class/HifzHistoryPage'));
+const SettingsPage         = lazy(() => import('./pages/SettingsPage'));
 
 /* ── Spinner fallback ────────────────────────────────────── */
 function PageFallback() {
@@ -69,7 +73,7 @@ function PublicLayout() {
   const { user, loading } = useAuth();
 
   if (loading) return <PageFallback />;
-  if (user?.role) return <Navigate to="/classes" replace />;
+  if (user?.role) return <Navigate to={user.role === 'student' ? '/classes' : '/home'} replace />;
 
   return <Outlet />;
 }
@@ -116,7 +120,10 @@ function AppRoutes() {
 
         {/* Protected routes */}
         <Route element={<ProtectedLayout />}>
-          <Route path="/dashboard" element={<Navigate to="/classes" replace />} />
+          <Route path="/dashboard" element={<Navigate to="/home" replace />} />
+
+          {/* Home dashboard */}
+          <Route path="/home" element={<HomeDashboard />} />
 
           {/* Nazirah tracker — direct access (bottom nav) */}
           <Route path="/nazirah" element={<NazirahTrack />} />
@@ -148,13 +155,26 @@ function AppRoutes() {
           <Route path="/classes/:classId/student/:studentId/nazirah-logs" element={<NazirahLogsList />} />
           <Route path="/classes/:classId/student/:studentId/nazirah-logs/:logId" element={<NazirahLogDetailPage />} />
 
+          {/* Hifz history — Ustadh viewing a student's Hifz sessions + SP log */}
+          <Route path="/classes/:classId/student/:studentId/hifz-history" element={<HifzHistoryPage />} />
+
           {/* History tab */}
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/history/:logId" element={<HistoryLogDetail />} />
 
-          {/* Hifz module */}
+          {/* Hifz module (standalone — legacy/no-class) */}
           <Route path="/hifz" element={<HifzHome />} />
           <Route path="/hifz/dawr" element={<DawrLog />} />
+
+          {/* Hifz module (class-scoped — data isolation) */}
+          <Route path="/classes/:classId/hifz" element={<HifzHome />} />
+          <Route path="/classes/:classId/hifz/dawr" element={<DawrLog />} />
+
+          {/* Per-student scoring (Ustadh) */}
+          <Route path="/classes/:classId/student/:studentId/dawr" element={<StudentDawrLog />} />
+
+          {/* Settings */}
+          <Route path="/settings" element={<SettingsPage />} />
 
           {/* Profile */}
           <Route path="/profile" element={<ProfileScreen />} />

@@ -114,7 +114,10 @@ export default function ClassesList() {
   return (
     <div className="min-h-screen scroll-container pb-layout pt-safe" style={{ backgroundColor: 'var(--c-bg)' }}>
       <div className="p-5 max-w-md mx-auto">
-        <h1 className="text-xl font-semibold mb-4" style={{ color: 'var(--c-text)' }}>Classes</h1>
+        {/* Greeting */}
+        <h1 className="text-xl font-bold" style={{ color: 'var(--c-text)' }}>
+          As-salāmu ʿalaikum, {user?.name?.split(' ')[0] || ''}
+        </h1>
 
         {loading ? (
           <div className="flex justify-center mt-20">
@@ -137,10 +140,10 @@ export default function ClassesList() {
               return (
                 <div
                   key={cls.id}
-                  onClick={() => navigate(`/classes/${cls.id}`)}
+                  onClick={() => navigate(isUstadh ? `/classes/${cls.id}` : `/classes/${cls.id}/hifz`)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={e => e.key === 'Enter' && navigate(`/classes/${cls.id}`)}
+                  onKeyDown={e => e.key === 'Enter' && navigate(isUstadh ? `/classes/${cls.id}` : `/classes/${cls.id}/hifz`)}
                   className="flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer transition-all active:scale-[0.98]"
                   style={{ backgroundColor: 'var(--c-bg-card)', border: '1px solid var(--c-border)' }}
                 >

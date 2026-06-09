@@ -36,7 +36,7 @@ function Slide1() {
       </div>
       <div>
         <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--c-text)' }}>
-          Welcome to The Nazirah App
+          Welcome to The Hifz App
         </h2>
         <p className="text-sm leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>
           Your personal Quran Hifz tracker. Track every page of your memorisation
