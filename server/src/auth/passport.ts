@@ -12,6 +12,7 @@ export function configurePassport(): void {
       },
       async (_accessToken, _refreshToken, profile, done) => {
         try {
+          console.log('[OAuth] Passport verify — profile.id:', profile.id, 'displayName:', profile.displayName);
           const email = profile.emails?.[0]?.value || '';
           const avatarUrl = profile.photos?.[0]?.value || null;
 
@@ -20,6 +21,7 @@ export function configurePassport(): void {
             .get(profile.id) as any;
 
           if (!user) {
+            console.log('[OAuth] Creating new user for', email);
             const result = db
               .prepare(
                 'INSERT INTO users (google_id, name, email, avatar_url) VALUES (?, ?, ?, ?)'
@@ -29,6 +31,7 @@ export function configurePassport(): void {
               .prepare('SELECT * FROM users WHERE id = ?')
               .get(result.lastInsertRowid);
           } else {
+            console.log('[OAuth] Found existing user id:', user.id);
             // Update avatar_url if changed
             if (user.avatar_url !== avatarUrl) {
               db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatarUrl, user.id);
@@ -36,8 +39,10 @@ export function configurePassport(): void {
             }
           }
 
+          console.log('[OAuth] Verify done — user id:', user?.id);
           return done(null, user);
         } catch (err) {
+          console.error('[OAuth] Passport verify error:', err);
           return done(err as Error);
         }
       }
