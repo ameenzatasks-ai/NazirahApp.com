@@ -8,7 +8,9 @@ export function configurePassport(): void {
       {
         clientID: process.env.GOOGLE_CLIENT_ID || 'dev-client-id',
         clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'dev-client-secret',
-        callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/api/auth/google/callback',
+        callbackURL: process.env.CLIENT_ORIGIN
+          ? `${process.env.CLIENT_ORIGIN.replace(/\/$/, '')}/api/auth/google/callback`
+          : 'http://localhost:3001/api/auth/google/callback',
       },
       async (_accessToken, _refreshToken, profile, done) => {
         try {
