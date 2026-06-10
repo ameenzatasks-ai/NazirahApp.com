@@ -39,7 +39,7 @@ export default function OnboardingScreen() {
           style={{ color: '#B8862A', fontSize: 56 }}
           lang="ar"
         >
-          ناظره
+          حفظ
         </p>
 
         {/* Google profile picture */}
@@ -80,7 +80,7 @@ export default function OnboardingScreen() {
           className="font-inter text-sm"
           style={{ color: 'rgba(15,76,58,0.6)' }}
         >
-          How are you using The Nazirah App?
+          How are you using The Hifz App?
         </p>
       </div>
 
@@ -90,7 +90,7 @@ export default function OnboardingScreen() {
             role: 'student' as const,
             icon: BookOpen,
             title: 'Student',
-            subtitle: 'I am learning Nazirah',
+            subtitle: 'I am learning Hifz',
           },
           {
             role: 'ustadh' as const,
