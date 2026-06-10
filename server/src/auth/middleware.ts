@@ -17,7 +17,6 @@ export interface AuthRequest extends Request {
 export function authenticate(req: AuthRequest, res: Response, next: NextFunction): void {
   const token = req.cookies?.nazirah_token;
   if (!token) {
-    console.log('[Auth] No nazirah_token cookie — cookies present:', Object.keys(req.cookies || {}).join(',') || 'none');
     res.status(401).json({ error: 'Not authenticated' });
     return;
   }
@@ -35,15 +34,13 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
       .get(payload.id) as AuthRequest['user'] | undefined;
 
     if (!user) {
-      console.log('[Auth] JWT valid but user id', payload.id, 'not found in DB');
       res.status(401).json({ error: 'User not found' });
       return;
     }
 
     req.user = user;
     next();
-  } catch (err) {
-    console.log('[Auth] JWT verify failed:', (err as Error).message);
+  } catch {
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 }

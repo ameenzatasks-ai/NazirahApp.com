@@ -13,22 +13,15 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 
 router.get(
   '/google/callback',
-  (req: Request, _res: Response, next) => {
-    console.log('[OAuth] Callback hit — query keys:', Object.keys(req.query).join(','));
-    next();
-  },
   passport.authenticate('google', { failureRedirect: `${CLIENT_ORIGIN}/welcome` }),
   (req: Request, res: Response): void => {
     const user = req.user as any;
-    console.log('[OAuth] passport.authenticate passed — user id:', user?.id ?? 'null');
     if (!user) {
-      console.log('[OAuth] No user after authenticate — redirecting to /welcome');
       res.redirect(`${CLIENT_ORIGIN}/welcome`);
       return;
     }
     const token = issueToken(user.id);
     setTokenCookie(res, token);
-    console.log('[OAuth] Cookie set — redirecting to', `${CLIENT_ORIGIN}/auth/callback`);
     res.redirect(`${CLIENT_ORIGIN}/auth/callback`);
   }
 );
