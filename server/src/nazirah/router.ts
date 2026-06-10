@@ -13,7 +13,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import db from '../db';
 import { authenticate, AuthRequest } from '../auth/middleware';
-import type { PageStatus } from '../../../shared/juz-map';
+import type { PageStatus } from '../shared/juz-map';
 
 const router = Router();
 

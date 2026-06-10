@@ -1,9 +1,9 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
-// __dirname when compiled = server/dist/server/src/ — go up 4 to project root.
+// __dirname when compiled = server/dist/ — go up 2 to project root.
 // In production, set DATABASE_PATH env var to a persistent volume path instead.
-const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, '../../../../nazirah.db');
+const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, '../../nazirah.db');
 const db = new Database(DB_PATH);
 
 db.pragma('journal_mode = WAL');

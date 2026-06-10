@@ -11,7 +11,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import db from '../db';
 import { authenticate, AuthRequest } from '../auth/middleware';
-import { getJuz, type PageStatus } from '../../../shared/juz-map';
+import { getJuz, type PageStatus } from '../shared/juz-map';
 
 const router = Router();
 
