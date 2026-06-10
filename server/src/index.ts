@@ -18,6 +18,7 @@ import hifzTasksRouter from './hifz-tasks/router';
 import dawrRouter from './dawr/router';
 
 const app = express();
+app.set('trust proxy', 1); // Required behind Render/Heroku/Railway reverse proxies
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 
