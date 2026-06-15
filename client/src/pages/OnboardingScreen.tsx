@@ -18,9 +18,11 @@ export default function OnboardingScreen() {
     try {
       const { user: updated } = await authApi.setRole(role);
       setUser(updated);
+      // Persist role locally so redeployments don't force re-onboarding
+      try { localStorage.setItem('hifz-user-role', role); } catch {}
       // Guarantee the tour shows immediately on first entry for both roles
       try { localStorage.removeItem('nazirah-tour-seen'); } catch {}
-      navigate('/classes', { replace: true });
+      navigate(role === 'student' ? '/classes' : '/home', { replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to set role');
       setLoading(null);

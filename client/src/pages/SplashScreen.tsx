@@ -33,6 +33,15 @@ export default function SplashScreen() {
       if (cancelled) return;
 
       if (!result.user.role) {
+        // DB was wiped (redeploy) — check if role was saved locally
+        const saved = localStorage.getItem('hifz-user-role') as 'student' | 'ustadh' | null;
+        if (saved === 'student' || saved === 'ustadh') {
+          try {
+            await authApi.setRole(saved);
+            navigate(saved === 'student' ? '/classes' : '/home', { replace: true });
+            return;
+          } catch { /* fall through to onboarding */ }
+        }
         navigate('/onboarding', { replace: true });
       } else {
         // Students land on classes list; Ustadh lands on home dashboard

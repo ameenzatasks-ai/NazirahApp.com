@@ -18,12 +18,21 @@ export default function AuthCallback() {
       try {
         const { user } = await authApi.me();
         setUser(user);
-        // Navigate IMMEDIATELY based on the freshly fetched user —
-        // don't wait for a layout re-render to catch up.
+
         if (!user.role) {
+          // DB was wiped (redeploy) — check if role was saved locally
+          const saved = localStorage.getItem('hifz-user-role') as 'student' | 'ustadh' | null;
+          if (saved === 'student' || saved === 'ustadh') {
+            try {
+              const { user: updated } = await authApi.setRole(saved);
+              setUser(updated);
+              navigate(saved === 'student' ? '/classes' : '/home', { replace: true });
+              return;
+            } catch { /* fall through to onboarding */ }
+          }
           navigate('/onboarding', { replace: true });
         } else {
-          navigate('/classes', { replace: true });
+          navigate(user.role === 'student' ? '/classes' : '/home', { replace: true });
         }
       } catch {
         navigate('/welcome', { replace: true });
