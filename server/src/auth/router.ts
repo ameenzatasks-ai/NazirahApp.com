@@ -1,9 +1,9 @@
 import { Router, Request, Response } from 'express';
 import passport from 'passport';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import db from '../db';
 import { authenticate, AuthRequest, issueToken, setTokenCookie } from './middleware';
-// `db` is still used elsewhere in this file (PATCH /role), so the import stays.
 
 const router = Router();
 const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN || 'http://localhost:5173').replace(/\/$/, '');
@@ -25,6 +25,68 @@ router.get(
     res.redirect(`${CLIENT_ORIGIN}/auth/callback`);
   }
 );
+
+// ── Username/password register ─────────────────────────────────
+router.post('/register', async (req: Request, res: Response): Promise<void> => {
+  const parsed = z.object({
+    name:     z.string().min(1).max(50).trim(),
+    username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers and underscores'),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+  }).safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.errors[0]?.message ?? 'Invalid input' });
+    return;
+  }
+
+  const { name, username, password } = parsed.data;
+  const usernameLower = username.toLowerCase();
+
+  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(usernameLower);
+  if (existing) {
+    res.status(409).json({ error: 'Username is already taken' });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const result = db
+    .prepare('INSERT INTO users (name, username, password_hash) VALUES (?, ?, ?)')
+    .run(name.trim(), usernameLower, passwordHash);
+
+  const user = db
+    .prepare('SELECT id, name, email, username, avatar_url, role, created_at FROM users WHERE id = ?')
+    .get(result.lastInsertRowid);
+
+  const token = issueToken((user as any).id);
+  setTokenCookie(res, token);
+  res.status(201).json({ user });
+});
+
+// ── Username/password login ─────────────────────────────────────
+router.post('/login', async (req: Request, res: Response): Promise<void> => {
+  const parsed = z.object({
+    username: z.string(),
+    password: z.string(),
+  }).safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Username and password required' });
+    return;
+  }
+
+  const { username, password } = parsed.data;
+  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.toLowerCase()) as any;
+
+  if (!user?.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
+    res.status(401).json({ error: 'Incorrect username or password' });
+    return;
+  }
+
+  const token = issueToken(user.id);
+  setTokenCookie(res, token);
+  const { password_hash: _, ...safeUser } = user;
+  res.json({ user: safeUser });
+});
 
 // ── Current user ───────────────────────────────────────────────
 router.get('/me', authenticate, (req: AuthRequest, res: Response): void => {

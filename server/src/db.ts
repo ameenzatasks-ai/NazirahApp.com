@@ -31,13 +31,15 @@ export function runMigrations(): void {
   // ── Core schema (idempotent) ─────────────────────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
-      id           INTEGER PRIMARY KEY AUTOINCREMENT,
-      google_id    TEXT    UNIQUE NOT NULL,
-      name         TEXT    NOT NULL,
-      email        TEXT    UNIQUE NOT NULL,
-      avatar_url   TEXT,
-      role         TEXT    CHECK(role IN ('ustadh', 'student')),
-      created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      google_id     TEXT    UNIQUE,
+      name          TEXT    NOT NULL,
+      email         TEXT    UNIQUE,
+      username      TEXT    UNIQUE,
+      password_hash TEXT,
+      avatar_url    TEXT,
+      role          TEXT    CHECK(role IN ('ustadh', 'student')),
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS classes (
@@ -350,6 +352,33 @@ export function runMigrations(): void {
   if (!hdtColsNow.some(c => c.name === 'sabaq_lines')) {
     db.exec('ALTER TABLE hifz_daily_tasks ADD COLUMN sabaq_lines INTEGER');
     console.log('Added sabaq_lines column to hifz_daily_tasks.');
+  }
+
+  // ── Username/password auth migration ──────────────────────────────────────
+  // Add username + password_hash columns and make google_id/email nullable.
+  const userCols = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string; notnull: number }>;
+  if (userCols.length > 0 && !userCols.some(c => c.name === 'username')) {
+    console.log('Migrating users table to support username/password auth...');
+    db.pragma('foreign_keys = OFF');
+    db.exec(`
+      CREATE TABLE users_v4 (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        google_id     TEXT    UNIQUE,
+        name          TEXT    NOT NULL,
+        email         TEXT    UNIQUE,
+        username      TEXT    UNIQUE,
+        password_hash TEXT,
+        avatar_url    TEXT,
+        role          TEXT    CHECK(role IN ('ustadh', 'student')),
+        created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO users_v4 (id, google_id, name, email, avatar_url, role, created_at)
+        SELECT id, google_id, name, email, avatar_url, role, created_at FROM users;
+      DROP TABLE users;
+      ALTER TABLE users_v4 RENAME TO users;
+    `);
+    db.pragma('foreign_keys = ON');
+    console.log('Users table migration complete.');
   }
 
   // ── status_history schema repair ───────────────────────────────────────────
