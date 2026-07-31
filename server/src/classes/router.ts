@@ -82,28 +82,30 @@ router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
   }
 });
 
-// GET /api/classes/:id — class details (owner Ustadh OR enrolled student)
+// GET /api/classes/:id — class details.
+// Access is granted by relationship, not by role: the owning Ustadh, or anyone
+// (student OR ustadh) enrolled in the class. An Ustadh who joins someone else's
+// class is a learner there, so ownership alone must not gate access.
 router.get('/:id', authenticate, (req: AuthRequest, res: Response): void => {
   const classId = parseInt(req.params.id, 10);
   const user = req.user!;
 
-  if (user.role === 'ustadh') {
-    const cls = db.prepare('SELECT * FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, user.id);
-    if (!cls) { res.status(404).json({ error: 'Class not found' }); return; }
-    res.json(cls);
-  } else {
-    // Student must be enrolled
-    const enrolled = db.prepare('SELECT id FROM enrolments WHERE class_id = ? AND student_id = ?').get(classId, user.id);
-    if (!enrolled) { res.status(404).json({ error: 'Class not found' }); return; }
-    const cls = db.prepare(`
-      SELECT c.*, u.name as ustadh_name
-      FROM classes c
-      JOIN users u ON u.id = c.ustadh_id
-      WHERE c.id = ?
-    `).get(classId);
-    if (!cls) { res.status(404).json({ error: 'Class not found' }); return; }
-    res.json(cls);
-  }
+  const cls = db.prepare(`
+    SELECT c.*, u.name as ustadh_name, u.avatar_url as ustadh_avatar
+    FROM classes c
+    JOIN users u ON u.id = c.ustadh_id
+    WHERE c.id = ?
+  `).get(classId) as any;
+  if (!cls) { res.status(404).json({ error: 'Class not found' }); return; }
+
+  const isOwner = cls.ustadh_id === user.id;
+  const isEnrolled = !!db
+    .prepare('SELECT id FROM enrolments WHERE class_id = ? AND student_id = ?')
+    .get(classId, user.id);
+
+  if (!isOwner && !isEnrolled) { res.status(404).json({ error: 'Class not found' }); return; }
+
+  res.json({ ...cls, is_owner: isOwner });
 });
 
 // PATCH /api/classes/:id — Ustadh renames their class

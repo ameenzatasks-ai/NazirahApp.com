@@ -4,6 +4,7 @@ import { BookOpen, GraduationCap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../api/auth';
+import { saveRole, homeFor } from '../lib/savedRole';
 
 export default function OnboardingScreen() {
   const { user, setUser } = useAuth();
@@ -19,10 +20,10 @@ export default function OnboardingScreen() {
       const { user: updated } = await authApi.setRole(role);
       setUser(updated);
       // Persist role locally so redeployments don't force re-onboarding
-      try { localStorage.setItem('hifz-user-role', role); } catch {}
+      saveRole(updated, role);
       // Guarantee the tour shows immediately on first entry for both roles
       try { localStorage.removeItem('nazirah-tour-seen'); } catch {}
-      navigate(role === 'student' ? '/classes' : '/home', { replace: true });
+      navigate(homeFor(role), { replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to set role');
       setLoading(null);

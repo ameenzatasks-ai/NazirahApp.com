@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/auth';
+import { loadRole, homeFor } from '../lib/savedRole';
 
 export default function SplashScreen() {
   const navigate = useNavigate();
@@ -33,19 +34,19 @@ export default function SplashScreen() {
       if (cancelled) return;
 
       if (!result.user.role) {
-        // DB was wiped (redeploy) — check if role was saved locally
-        const saved = localStorage.getItem('hifz-user-role') as 'student' | 'ustadh' | null;
-        if (saved === 'student' || saved === 'ustadh') {
+        // DB was wiped (redeploy) — restore the role saved for THIS account
+        const saved = loadRole(result.user);
+        if (saved) {
           try {
             await authApi.setRole(saved);
-            navigate(saved === 'student' ? '/classes' : '/home', { replace: true });
+            navigate(homeFor(saved), { replace: true });
             return;
           } catch { /* fall through to onboarding */ }
         }
         navigate('/onboarding', { replace: true });
       } else {
         // Students land on classes list; Ustadh lands on home dashboard
-        navigate(result.user.role === 'student' ? '/classes' : '/home', { replace: true });
+        navigate(homeFor(result.user.role), { replace: true });
       }
     })();
 

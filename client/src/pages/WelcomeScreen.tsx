@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../api/auth';
+import { homeFor } from '../lib/savedRole';
 import Spinner from '../components/Spinner';
 
 type View = 'home' | 'username-choose' | 'create' | 'signin';
@@ -113,9 +114,8 @@ export default function WelcomeScreen() {
     setLoading(true);
     try {
       const { user } = await authApi.register(name.trim(), username.trim(), password);
-      try { localStorage.setItem('hifz-username', username.trim().toLowerCase()); } catch {}
       setUser(user);
-      navigate(user.role ? (user.role === 'student' ? '/classes' : '/home') : '/onboarding', { replace: true });
+      navigate(user.role ? homeFor(user.role) : '/onboarding', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -130,7 +130,7 @@ export default function WelcomeScreen() {
     try {
       const { user } = await authApi.login(username.trim(), password);
       setUser(user);
-      navigate(user.role ? (user.role === 'student' ? '/classes' : '/home') : '/onboarding', { replace: true });
+      navigate(user.role ? homeFor(user.role) : '/onboarding', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

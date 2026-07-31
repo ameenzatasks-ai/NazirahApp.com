@@ -4,9 +4,13 @@ declare global {
   namespace Express {
     interface User {
       id: number;
-      google_id: string;
+      /** Null for username/password accounts. */
+      google_id: string | null;
       name: string;
-      email: string;
+      /** Null for username/password accounts. */
+      email: string | null;
+      /** Null for Google accounts. */
+      username: string | null;
       avatar_url: string | null;
       role: string | null;
       created_at: string;

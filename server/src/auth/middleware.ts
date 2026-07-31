@@ -6,10 +6,14 @@ export interface AuthRequest extends Request {
   user?: {
     id: number;
     name: string;
-    email: string;
+    /** Null for username/password accounts. */
+    email: string | null;
     role: string | null;
     avatar_url: string | null;
-    google_id: string;
+    /** Null for username/password accounts. */
+    google_id: string | null;
+    /** Null for Google accounts. */
+    username: string | null;
     created_at: string;
   };
 }
@@ -30,7 +34,7 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
   try {
     const payload = jwt.verify(token, secret) as { id: number };
     const user = db
-      .prepare('SELECT id, google_id, name, email, avatar_url, role, created_at FROM users WHERE id = ?')
+      .prepare('SELECT id, google_id, name, email, username, avatar_url, role, created_at FROM users WHERE id = ?')
       .get(payload.id) as AuthRequest['user'] | undefined;
 
     if (!user) {

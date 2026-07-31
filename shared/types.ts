@@ -8,9 +8,13 @@ export type Role = 'ustadh' | 'student';
 
 export interface User {
   id: number;
-  google_id: string;
+  /** Set for Google accounts; null for username/password accounts. */
+  google_id: string | null;
   name: string;
-  email: string;
+  /** Set for Google accounts; null for username/password accounts. */
+  email: string | null;
+  /** Set for username/password accounts; null for Google accounts. */
+  username: string | null;
   avatar_url: string | null;
   role: Role | null;
   created_at: string;

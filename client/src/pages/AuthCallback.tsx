@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Spinner from '../components/Spinner';
 import { authApi } from '../api/auth';
+import { loadRole, homeFor } from '../lib/savedRole';
 
 export default function AuthCallback() {
   const { setUser } = useAuth();
@@ -20,19 +21,19 @@ export default function AuthCallback() {
         setUser(user);
 
         if (!user.role) {
-          // DB was wiped (redeploy) — check if role was saved locally
-          const saved = localStorage.getItem('hifz-user-role') as 'student' | 'ustadh' | null;
-          if (saved === 'student' || saved === 'ustadh') {
+          // DB was wiped (redeploy) — restore the role saved for THIS account
+          const saved = loadRole(user);
+          if (saved) {
             try {
               const { user: updated } = await authApi.setRole(saved);
               setUser(updated);
-              navigate(saved === 'student' ? '/classes' : '/home', { replace: true });
+              navigate(homeFor(saved), { replace: true });
               return;
             } catch { /* fall through to onboarding */ }
           }
           navigate('/onboarding', { replace: true });
         } else {
-          navigate(user.role === 'student' ? '/classes' : '/home', { replace: true });
+          navigate(homeFor(user.role), { replace: true });
         }
       } catch {
         navigate('/welcome', { replace: true });

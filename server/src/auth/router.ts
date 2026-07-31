@@ -54,7 +54,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     .run(name.trim(), usernameLower, passwordHash);
 
   const user = db
-    .prepare('SELECT id, name, email, username, avatar_url, role, created_at FROM users WHERE id = ?')
+    .prepare('SELECT id, google_id, name, email, username, avatar_url, role, created_at FROM users WHERE id = ?')
     .get(result.lastInsertRowid);
 
   const token = issueToken((user as any).id);
@@ -109,7 +109,7 @@ router.patch('/role', authenticate, (req: AuthRequest, res: Response): void => {
 
   db.prepare('UPDATE users SET role = ? WHERE id = ?').run(parsed.data.role, user.id);
   const updated = db
-    .prepare('SELECT id, google_id, name, email, avatar_url, role, created_at FROM users WHERE id = ?')
+    .prepare('SELECT id, google_id, name, email, username, avatar_url, role, created_at FROM users WHERE id = ?')
     .get(user.id);
 
   res.json({ user: updated });
