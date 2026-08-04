@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { customAlphabet } from 'nanoid';
 import db from '../db';
 import { authenticate, requireRole, AuthRequest } from '../auth/middleware';
+import { sweepRetest } from '../hifz/retest';
 
 const nanoid = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 6);
 
@@ -227,6 +228,7 @@ router.get('/:id/students/:studentId/pages', authenticate, requireRole('ustadh')
 
 /** Build a 7-color count of pages for one student (out of 604 total). */
 function buildStudentCounts(studentId: number) {
+  sweepRetest(studentId);
   const rows = db.prepare(`
     SELECT status, COUNT(*) AS c
     FROM student_page_status

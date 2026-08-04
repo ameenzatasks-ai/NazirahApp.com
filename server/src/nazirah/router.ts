@@ -14,6 +14,7 @@ import { z } from 'zod';
 import db from '../db';
 import { authenticate, AuthRequest } from '../auth/middleware';
 import type { PageStatus } from '../shared/juz-map';
+import { sweepRetest } from '../hifz/retest';
 
 const router = Router();
 
@@ -143,6 +144,7 @@ router.get('/log/preview', authenticate, (req: AuthRequest, res: Response): void
     res.status(400).json({ error: 'date query param must be YYYY-MM-DD' }); return;
   }
 
+  sweepRetest(user.id);
   const pages = stmtGetWeeklyPages.all(user.id, date, date) as PageRow[];
 
   const colorCounts = { BLACK: 0, RED: 0, AMBER: 0, GREEN: 0, GOLD: 0, YELLOW: 0 };
@@ -180,6 +182,7 @@ router.post('/log', authenticate, (req: AuthRequest, res: Response): void => {
   }
 
   // Read only pages the student changed in the 7-day window for this log date
+  sweepRetest(user.id);
   const pages = stmtGetWeeklyPages.all(user.id, logDate, logDate) as PageRow[];
 
   // Save the snapshot (deletes old log for same date, inserts fresh)

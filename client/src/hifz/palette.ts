@@ -6,7 +6,7 @@
  *   AMBER  — Practicing  (medium orange)
  *   GREEN  — Ready       (medium teal)
  *   GOLD   — Memorized   (medium gold)
- *   YELLOW — Re-read     (medium purple)
+ *   YELLOW — Re-test     (medium grey)
  */
 import type { PageStatus } from '../../../shared/juz-map';
 import {
@@ -81,14 +81,14 @@ export const PALETTE: Record<PageStatus, PaletteEntry> = {
     text:      '#FFFFFF',
     icon: Star,
   },
-  // ── Re-read — medium purple ────────────────────────────────────────────
+  // ── Re-test — medium grey ──────────────────────────────────────────────
   YELLOW: {
-    label: 'Re-read',
-    description: 'Was Ready, but more than 10 days have passed — needs revisiting',
-    fill:      '#521A9C',
-    accent:    '#B060FF',
-    iconBg:    '#6B22C4',
-    iconColor: '#D8A8FF',
+    label: 'Re-test',
+    description: 'Was Ready, but more than 10 days have passed — needs re-testing',
+    fill:      '#3F3F46',
+    accent:    '#A1A1AA',
+    iconBg:    '#52525B',
+    iconColor: '#D4D4D8',
     text:      '#FFFFFF',
     icon: RotateCw,
   },

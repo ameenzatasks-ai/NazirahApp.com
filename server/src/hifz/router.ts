@@ -12,6 +12,7 @@ import { z } from 'zod';
 import db from '../db';
 import { authenticate, AuthRequest } from '../auth/middleware';
 import { getJuz, type PageStatus } from '../shared/juz-map';
+import { sweepRetest } from './retest';
 
 const router = Router();
 
@@ -84,6 +85,8 @@ function buildJuzGrid(studentId: number, juzNumber: number) {
   const juz = getJuz(juzNumber);
   if (!juz) return null;
 
+  sweepRetest(studentId);
+
   const rows = stmtJuzPages.all(studentId, juz.startPage, juz.endPage) as
     Array<{ page_number: number; status: PageStatus }>;
 
@@ -134,6 +137,7 @@ function setPageStatus(
 }
 
 function buildSummary(studentId: number) {
+  sweepRetest(studentId);
   const counts = stmtSummary.all(studentId) as Array<{ status: PageStatus; c: number }>;
   const out: Record<PageStatus, number> & { UNTOUCHED: number } = {
     BLACK: 0, RED: 0, AMBER: 0, YELLOW: 0, GREEN: 0, GOLD: 0, UNTOUCHED: 0,
@@ -259,6 +263,7 @@ router.get('/audit/student/:studentId', authenticate, (req: AuthRequest, res: Re
 // ── All pages (flat, for grouped colour views) ─────────────────────────────
 
 router.get('/pages', authenticate, (req: AuthRequest, res: Response): void => {
+  sweepRetest(req.user!.id);
   const rows = stmtAllPages.all(req.user!.id) as Array<{ page_number: number; status: PageStatus }>;
   res.json({ pages: rows.map(r => ({ pageNumber: r.page_number, status: r.status })) });
 });
@@ -268,6 +273,7 @@ router.get('/pages/student/:studentId', authenticate, (req: AuthRequest, res: Re
   if (user.role !== 'ustadh') { res.status(403).json({ error: 'Ustadh only' }); return; }
   const studentId = parseInt(req.params.studentId, 10);
   if (!ustadhTeaches(user.id, studentId)) { res.status(403).json({ error: 'Not your student' }); return; }
+  sweepRetest(studentId);
   const rows = stmtAllPages.all(studentId) as Array<{ page_number: number; status: PageStatus }>;
   res.json({ pages: rows.map(r => ({ pageNumber: r.page_number, status: r.status })) });
 });

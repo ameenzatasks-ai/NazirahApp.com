@@ -160,7 +160,7 @@ export default function HomeDashboard() {
   }
 
   return (
-    <div className="min-h-screen pb-layout" style={{ backgroundColor: 'var(--c-bg)' }}>
+    <div className="min-h-screen pb-layout pt-safe" style={{ backgroundColor: 'var(--c-bg)' }}>
       {/* Header */}
       <div className="px-5 pt-6 pb-4">
         <h1 className="text-xl font-bold" style={{ color: 'var(--c-text)' }}>{greeting}</h1>

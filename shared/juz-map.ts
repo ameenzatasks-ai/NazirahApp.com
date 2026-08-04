@@ -66,7 +66,7 @@ export function juzForPage(pageNumber: number): JuzInfo | undefined {
  *   AMBER  — Practicing (~10 reads in, about to read to the start)
  *   GREEN  — Ready to memorize (cleared)
  *   GOLD   — Memorized in Sabaq
- *   YELLOW — Was Green, drifted >10 days → needs re-read
+ *   YELLOW — Was Green, drifted >=10 days → needs re-test (applied automatically)
  * A page with no row in the DB is "Untouched" (rendered as empty).
  */
 export type PageStatus =
