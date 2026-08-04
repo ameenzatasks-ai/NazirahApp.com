@@ -13,6 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { classesApi } from '../api/classes';
 import type { ClassWithMeta } from '../types';
 import Spinner from '../components/Spinner';
+import ClassSheet from '../components/ClassSheet';
 
 /* ── Stat card ────────────────────────────────────── */
 function StatCard({ icon, color, value, unit, label }: {
@@ -97,7 +98,8 @@ function ClassRow({ cls, onClick }: { cls: ClassWithMeta; onClick: () => void })
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold truncate" style={{ color: 'var(--c-text)' }}>{cls.name}</div>
         <div className="text-[11px] mt-0.5" style={{ color: 'var(--c-text-muted)' }}>
-          {cls.student_count} student{cls.student_count !== 1 ? 's' : ''}
+          {/* A just-created class has no count yet — fall back to 0. */}
+          {cls.student_count ?? 0} student{(cls.student_count ?? 0) !== 1 ? 's' : ''}
         </div>
       </div>
       <span
@@ -137,6 +139,7 @@ export default function HomeDashboard() {
 
   const [classes, setClasses] = useState<ClassWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     classesApi.list()
@@ -242,11 +245,11 @@ export default function HomeDashboard() {
 
             {/* Classes */}
             <div>
-              <SectionHead title="Your classes" action="Manage" onAction={() => navigate('/classes')} />
+              <SectionHead title="Your classes" action="Create a class" onAction={() => setSheetOpen(true)} />
               {classes.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-sm" style={{ color: 'var(--c-text-muted)' }}>
-                    No classes yet. Create one from the Classes tab.
+                    No classes yet. Tap “Create a class” to make your first one.
                   </p>
                 </div>
               ) : (
@@ -261,6 +264,13 @@ export default function HomeDashboard() {
           </>
         )}
       </div>
+
+      <ClassSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        isUstadh={isUstadh}
+        onSuccess={cls => setClasses(prev => [cls, ...prev])}
+      />
     </div>
   );
 }

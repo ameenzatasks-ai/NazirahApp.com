@@ -52,7 +52,7 @@ function Slide2() {
     { term: 'Nazirah (ناظره)', def: 'Reciting from looking at the Mushaf — reading with sight.' },
     { term: 'Hifz (حفظ)',      def: 'Complete memorisation — knowing the Quran by heart.' },
     { term: 'Sabaq (سبق)',     def: 'Your daily new lesson — pages you memorise fresh today.' },
-    { term: 'Dhor (دور)',      def: 'Revision of recently memorised pages.' },
+    { term: 'Dawr (دور)',      def: 'Revision of recently memorised pages.' },
     { term: 'Ustadh (أستاذ)', def: 'Your teacher who monitors and guides your memorisation.' },
   ];
   return (
