@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, BookOpen, Grid3x3, Star, Users, Clock, ChevronRight } from 'lucide-react';
+import { Flame, BookOpen, Grid3x3, Star, Users, Clock, ChevronRight, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { classesApi } from '../api/classes';
 import type { ClassWithMeta } from '../types';
@@ -113,18 +113,24 @@ function ClassRow({ cls, onClick }: { cls: ClassWithMeta; onClick: () => void })
 }
 
 /* ── Section heading ──────────────────────────────── */
+/**
+ * The action is a filled pill rather than small text so it reads as a button
+ * and clears the ~44px minimum touch target. `flex-shrink-0` keeps it at full
+ * size on narrow phones — the rule divider absorbs the remaining width, so the
+ * title and the button can never collide.
+ */
 function SectionHead({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   return (
     <div className="flex items-center gap-3 mb-3">
-      <h3 className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{title}</h3>
-      <div className="flex-1 h-px" style={{ backgroundColor: 'var(--c-border)' }} />
+      <h3 className="text-sm font-bold flex-shrink-0" style={{ color: 'var(--c-text)' }}>{title}</h3>
+      <div className="flex-1 h-px min-w-[8px]" style={{ backgroundColor: 'var(--c-border)' }} />
       {action && onAction && (
         <button
           onClick={onAction}
-          className="text-[11px] font-semibold flex items-center gap-1 transition-all active:scale-95"
-          style={{ color: 'var(--c-gold)' }}
+          className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[13px] font-bold transition-all active:scale-95 flex-shrink-0"
+          style={{ backgroundColor: 'var(--c-gold)', color: '#0d0d0d' }}
         >
-          {action} <ChevronRight className="w-3 h-3" />
+          {action} <ChevronRight className="w-4 h-4" />
         </button>
       )}
     </div>
@@ -247,10 +253,23 @@ export default function HomeDashboard() {
             <div>
               <SectionHead title="Your classes" action="Create a class" onAction={() => setSheetOpen(true)} />
               {classes.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-sm" style={{ color: 'var(--c-text-muted)' }}>
-                    No classes yet. Tap “Create a class” to make your first one.
+                /* With no classes this is the whole point of the screen, so the
+                   action gets the full width rather than living only in the
+                   header pill. */
+                <div className="flex flex-col items-center gap-4 py-6">
+                  <p className="text-sm text-center" style={{ color: 'var(--c-text-muted)' }}>
+                    No classes yet — create your first one.
                   </p>
+                  <button
+                    onClick={() => setSheetOpen(true)}
+                    className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 px-6 text-sm font-bold transition-all active:scale-95"
+                    /* Full width on a phone, capped on desktop so it doesn't
+                       stretch across the whole window. */
+                    style={{ backgroundColor: 'var(--c-gold)', color: '#0d0d0d', maxWidth: 420 }}
+                  >
+                    <Plus className="w-5 h-5" strokeWidth={2.5} />
+                    Create a class
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
