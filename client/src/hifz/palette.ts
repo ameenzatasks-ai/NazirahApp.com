@@ -3,7 +3,7 @@
  *
  *   BLACK  — Listened    (medium navy blue)
  *   RED    — Read        (medium crimson)
- *   AMBER  — Practicing  (medium orange)
+ *   AMBER  — Practiced   (medium orange)
  *   GREEN  — Ready       (medium teal)
  *   GOLD   — Memorized   (medium gold)
  *   YELLOW — Re-test     (medium grey)
@@ -48,10 +48,10 @@ export const PALETTE: Record<PageStatus, PaletteEntry> = {
     text:      '#FFFFFF',
     icon: BookOpen,
   },
-  // ── Practicing — medium orange ─────────────────────────────────────────
+  // ── Practiced — medium orange ──────────────────────────────────────────
   AMBER: {
-    label: 'Practicing',
-    description: "I'm practicing — about ten reads in, getting ready to read to the ustadh",
+    label: 'Practiced',
+    description: "I've practiced — about ten reads in, getting ready to read to the ustadh",
     fill:      '#9B4800',
     accent:    '#FF7A1A',
     iconBg:    '#BE5A00',

@@ -6,7 +6,16 @@ import { authApi } from '../api/auth';
 import { homeFor } from '../lib/savedRole';
 import Spinner from '../components/Spinner';
 
-type View = 'home' | 'username-choose' | 'create' | 'signin';
+/**
+ * The landing screen asks *what* you want to do before asking *how*:
+ *   home          → "Create an account" / "Sign in"
+ *   create-choose → "Create an account with Google" / "… with username"
+ *   signin-choose → "Sign in with Google" / "… with username"
+ * followed by the matching username form. Google is the same OAuth route in
+ * both branches — it signs in an existing account or creates one — so the
+ * wording differs but the destination does not.
+ */
+type View = 'home' | 'create-choose' | 'signin-choose' | 'create-form' | 'signin-form';
 
 function ArchIllustration() {
   return (
@@ -40,6 +49,72 @@ function GoldDivider() {
       <svg width="6" height="6" viewBox="0 0 6 6" aria-hidden="true"><polygon points="3,0 6,3 3,6 0,3" fill="#B8862A" opacity="0.5" /></svg>
       <div style={{ width: 50, height: 1, backgroundColor: '#B8862A', opacity: 0.35 }} />
     </div>
+  );
+}
+
+/** Google mark — shown on both the create and sign-in branches. */
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+    </svg>
+  );
+}
+
+/** Solid dark-green primary button. */
+function PrimaryButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-center gap-3 rounded-2xl py-4 px-6 font-inter font-semibold text-sm transition-all active:scale-95"
+      style={{ backgroundColor: '#0F4C3A', color: '#FAF7F0', boxShadow: '0 2px 16px rgba(15,76,58,0.25)' }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Outlined secondary button. */
+function OutlineButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-center gap-3 rounded-2xl py-4 px-6 font-inter font-semibold text-sm transition-all active:scale-95"
+      style={{ backgroundColor: 'transparent', color: '#0F4C3A', border: '1.5px solid rgba(15,76,58,0.25)' }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Google OAuth link, styled as a primary button. Label differs per branch. */
+function GoogleButton({ label }: { label: string }) {
+  return (
+    <a
+      href="/api/auth/google"
+      className="w-full flex items-center justify-center gap-3 rounded-2xl py-4 px-6 font-inter font-semibold text-sm transition-all active:scale-95"
+      style={{ backgroundColor: '#0F4C3A', color: '#FAF7F0', boxShadow: '0 2px 16px rgba(15,76,58,0.25)' }}
+    >
+      <GoogleMark />
+      {label}
+    </a>
+  );
+}
+
+/** Back link plus heading, shared by every screen after the landing page. */
+function StepHeader({ onBack, title, subtitle }: { onBack: () => void; title: string; subtitle: string }) {
+  return (
+    <>
+      <button onClick={onBack} className="flex items-center gap-1 mb-8 self-start" style={{ color: 'rgba(15,76,58,0.5)' }}>
+        <ChevronLeft className="w-4 h-4" /> Back
+      </button>
+      <p className="font-amiri text-4xl mb-1" style={{ color: '#B8862A' }} lang="ar">حفظ</p>
+      <h2 className="font-inter font-bold text-xl mb-1" style={{ color: '#0F4C3A' }}>{title}</h2>
+      <p className="text-sm mb-10" style={{ color: 'rgba(15,76,58,0.55)' }}>{subtitle}</p>
+    </>
   );
 }
 
@@ -157,36 +232,8 @@ export default function WelcomeScreen() {
           </div>
 
           <div className="animate-fade-in-up-delay2 w-full px-8 pb-8 flex flex-col items-center" style={{ maxWidth: 400, gap: 12 }}>
-            {/* Google */}
-            <a
-              href="/api/auth/google"
-              className="w-full flex items-center justify-center gap-3 rounded-2xl py-4 px-6 font-inter font-semibold text-sm transition-all active:scale-95"
-              style={{ backgroundColor: '#0F4C3A', color: '#FAF7F0', boxShadow: '0 2px 16px rgba(15,76,58,0.25)' }}
-            >
-              <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-              </svg>
-              Continue with Google
-            </a>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 w-full">
-              <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(15,76,58,0.12)' }} />
-              <span className="text-xs" style={{ color: 'rgba(15,76,58,0.35)' }}>or</span>
-              <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(15,76,58,0.12)' }} />
-            </div>
-
-            {/* Username */}
-            <button
-              onClick={() => reset('username-choose')}
-              className="w-full flex items-center justify-center rounded-2xl py-4 px-6 font-inter font-semibold text-sm transition-all active:scale-95"
-              style={{ backgroundColor: 'transparent', color: '#0F4C3A', border: '1.5px solid rgba(15,76,58,0.25)' }}
-            >
-              Continue with Username
-            </button>
+            <PrimaryButton onClick={() => reset('create-choose')}>Create an account</PrimaryButton>
+            <OutlineButton onClick={() => reset('signin-choose')}>Sign in</OutlineButton>
 
             <p className="text-center text-[11px] mt-1" style={{ color: 'rgba(15,76,58,0.35)' }}>
               By continuing you agree to our Terms of Service & Privacy Policy
@@ -198,45 +245,58 @@ export default function WelcomeScreen() {
         </>
       )}
 
-      {/* ── Choose: create or sign in ─────────────────────── */}
-      {view === 'username-choose' && (
-        <div className="flex-1 flex flex-col w-full px-8 pt-14 pb-8" style={{ maxWidth: 400, margin: '0 auto', gap: 0 }}>
-          <button onClick={() => reset('home')} className="flex items-center gap-1 mb-8 self-start" style={{ color: 'rgba(15,76,58,0.5)' }}>
-            <ChevronLeft className="w-4 h-4" /> Back
-          </button>
-
-          <p className="font-amiri text-4xl mb-1" style={{ color: '#B8862A' }} lang="ar">حفظ</p>
-          <h2 className="font-inter font-bold text-xl mb-1" style={{ color: '#0F4C3A' }}>The Hifz App</h2>
-          <p className="text-sm mb-10" style={{ color: 'rgba(15,76,58,0.55)' }}>Sign in or create a new account.</p>
-
+      {/* ── Create: choose Google or username ─────────────── */}
+      {view === 'create-choose' && (
+        <div className="flex-1 flex flex-col w-full px-8 pt-14 pb-8" style={{ maxWidth: 400, margin: '0 auto' }}>
+          <StepHeader
+            onBack={() => reset('home')}
+            title="Create an account"
+            subtitle="How would you like to sign up?"
+          />
           <div className="flex flex-col" style={{ gap: 12 }}>
-            <button
-              onClick={() => reset('create')}
-              className="w-full py-4 rounded-2xl font-semibold text-sm transition-all active:scale-95"
-              style={{ backgroundColor: '#0F4C3A', color: '#FAF7F0' }}
-            >
-              Create an account
-            </button>
-            <button
-              onClick={() => reset('signin')}
-              className="w-full py-4 rounded-2xl font-semibold text-sm transition-all active:scale-95"
-              style={{ backgroundColor: 'transparent', color: '#0F4C3A', border: '1.5px solid rgba(15,76,58,0.25)' }}
-            >
+            <GoogleButton label="Create an account with Google" />
+            <OutlineButton onClick={() => reset('create-form')}>Create an account with username</OutlineButton>
+          </div>
+
+          <p className="text-center text-xs mt-8" style={{ color: 'rgba(15,76,58,0.5)' }}>
+            Already have an account?{' '}
+            <button onClick={() => reset('signin-choose')} className="font-semibold underline" style={{ color: '#0F4C3A' }}>
               Sign in
             </button>
-          </div>
+          </p>
         </div>
       )}
 
-      {/* ── Create account ────────────────────────────────── */}
-      {view === 'create' && (
+      {/* ── Sign in: choose Google or username ────────────── */}
+      {view === 'signin-choose' && (
         <div className="flex-1 flex flex-col w-full px-8 pt-14 pb-8" style={{ maxWidth: 400, margin: '0 auto' }}>
-          <button onClick={() => reset('username-choose')} className="flex items-center gap-1 mb-8 self-start" style={{ color: 'rgba(15,76,58,0.5)' }}>
-            <ChevronLeft className="w-4 h-4" /> Back
-          </button>
+          <StepHeader
+            onBack={() => reset('home')}
+            title="Sign in"
+            subtitle="How would you like to sign in?"
+          />
+          <div className="flex flex-col" style={{ gap: 12 }}>
+            <GoogleButton label="Sign in with Google" />
+            <OutlineButton onClick={() => reset('signin-form')}>Sign in with username</OutlineButton>
+          </div>
 
-          <h2 className="font-inter font-bold text-xl mb-1" style={{ color: '#0F4C3A' }}>Create account</h2>
-          <p className="text-sm mb-8" style={{ color: 'rgba(15,76,58,0.55)' }}>Choose a username and password.</p>
+          <p className="text-center text-xs mt-8" style={{ color: 'rgba(15,76,58,0.5)' }}>
+            No account yet?{' '}
+            <button onClick={() => reset('create-choose')} className="font-semibold underline" style={{ color: '#0F4C3A' }}>
+              Create one
+            </button>
+          </p>
+        </div>
+      )}
+
+      {/* ── Create account with username ──────────────────── */}
+      {view === 'create-form' && (
+        <div className="flex-1 flex flex-col w-full px-8 pt-14 pb-8" style={{ maxWidth: 400, margin: '0 auto' }}>
+          <StepHeader
+            onBack={() => reset('create-choose')}
+            title="Create an account"
+            subtitle="Choose a username and password."
+          />
 
           <div className="flex flex-col" style={{ gap: 16 }}>
             <InputField label="Your name" value={name} onChange={setName} placeholder="e.g. Abdullah" />
@@ -273,7 +333,7 @@ export default function WelcomeScreen() {
 
             <p className="text-center text-xs" style={{ color: 'rgba(15,76,58,0.5)' }}>
               Already have an account?{' '}
-              <button onClick={() => reset('signin')} className="font-semibold underline" style={{ color: '#0F4C3A' }}>
+              <button onClick={() => reset('signin-choose')} className="font-semibold underline" style={{ color: '#0F4C3A' }}>
                 Sign in
               </button>
             </p>
@@ -281,15 +341,14 @@ export default function WelcomeScreen() {
         </div>
       )}
 
-      {/* ── Sign in ───────────────────────────────────────── */}
-      {view === 'signin' && (
+      {/* ── Sign in with username ─────────────────────────── */}
+      {view === 'signin-form' && (
         <div className="flex-1 flex flex-col w-full px-8 pt-14 pb-8" style={{ maxWidth: 400, margin: '0 auto' }}>
-          <button onClick={() => reset('username-choose')} className="flex items-center gap-1 mb-8 self-start" style={{ color: 'rgba(15,76,58,0.5)' }}>
-            <ChevronLeft className="w-4 h-4" /> Back
-          </button>
-
-          <h2 className="font-inter font-bold text-xl mb-1" style={{ color: '#0F4C3A' }}>Sign in</h2>
-          <p className="text-sm mb-8" style={{ color: 'rgba(15,76,58,0.55)' }}>Enter your username and password.</p>
+          <StepHeader
+            onBack={() => reset('signin-choose')}
+            title="Sign in"
+            subtitle="Enter your username and password."
+          />
 
           <div className="flex flex-col" style={{ gap: 16 }}>
             <InputField label="Username" value={username} onChange={setUsername} placeholder="Your username" />
@@ -318,7 +377,7 @@ export default function WelcomeScreen() {
 
             <p className="text-center text-xs" style={{ color: 'rgba(15,76,58,0.5)' }}>
               No account yet?{' '}
-              <button onClick={() => reset('create')} className="font-semibold underline" style={{ color: '#0F4C3A' }}>
+              <button onClick={() => reset('create-choose')} className="font-semibold underline" style={{ color: '#0F4C3A' }}>
                 Create one
               </button>
             </p>

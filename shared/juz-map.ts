@@ -63,7 +63,7 @@ export function juzForPage(pageNumber: number): JuzInfo | undefined {
  * Page memorization status (user-defined semantics).
  *   BLACK  — Listened once
  *   RED    — Read once (recited to the start)
- *   AMBER  — Practicing (~10 reads in, about to read to the start)
+ *   AMBER  — Practiced (~10 reads in, about to read to the start)
  *   GREEN  — Ready to memorize (cleared)
  *   GOLD   — Memorized in Sabaq
  *   YELLOW — Was Green, drifted >=10 days → needs re-test (applied automatically)
