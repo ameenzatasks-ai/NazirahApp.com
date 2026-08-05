@@ -28,6 +28,15 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
+        // Take over as soon as a new build is fetched. Without these a fresh
+        // service worker sits in "waiting" until every tab of the app is
+        // closed, so a deploy keeps serving the previous bundle and a plain
+        // reload appears to do nothing.
+        skipWaiting: true,
+        clientsClaim: true,
+        // Drop caches from previous builds instead of leaving them to
+        // accumulate and potentially be served.
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
