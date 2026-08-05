@@ -1,22 +1,29 @@
 /**
  * JuzGrid — one tile per page, solid color.
  *
- *   • Dropdown selector for Juz (1..30) at the top.
- *   • Below: a clean grid of square tiles, one per page in that Juz.
+ * All 604 pages live in a single continuous scroll, split by a sticky header
+ * per Juz, like months in a calendar. The Juz selector scrolls to the start of
+ * a Juz rather than swapping the view, so the pages either side stay reachable
+ * — the boundary between two Juz is exactly where a student often works.
+ *
+ * The selector tracks whatever Juz is under the top of the viewport as you
+ * scroll, so it always reads as a position indicator rather than a filter.
+ *
  *   • Untouched pages = empty/white tile with just the page number.
  *   • Tap a tile → opens the PageEditor pop-up to set its colour.
- *   • The grid is responsive: 5 columns on phone, 8 on tablet, 10 on desktop.
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { History, BookmarkPlus, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useConfetti } from '../components/Confetti';
-import { hifzApi, type JuzGridData, type JuzGridPage } from '../api/hifz';
+import { hifzApi, type JuzGridPage } from '../api/hifz';
 import type { PageStatus } from '../../../shared/juz-map';
-import { juzForPage } from '../../../shared/juz-map';
+import { juzForPage, JUZ_MAP } from '../../../shared/juz-map';
 import { PALETTE } from './palette';
 import PageEditor from './PageEditor';
 import Spinner from '../components/Spinner';
+
+const TOTAL_PAGES = 604;
 
 interface Props {
   /** If set, viewing this student as an Ustadh; otherwise viewing self. */
@@ -100,6 +107,8 @@ function PageTile({ page, onTap, highlighted }: { page: JuzGridPage; onTap: () =
 
 export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazira, readOnly = false }: Props) {
   const { burst } = useConfetti();
+
+  /** The Juz the selector shows — driven by scroll position, not by filtering. */
   const [juzNumber, setJuzNumber] = useState<number>(() => {
     if (initialJuz) return initialJuz;
     try {
@@ -107,81 +116,122 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
       return saved ? Math.min(30, Math.max(1, parseInt(saved, 10))) : 1;
     } catch { return 1; }
   });
-  const [grid, setGrid] = useState<JuzGridData | null>(null);
+  const [pages, setPages] = useState<JuzGridPage[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [editorPage, setEditorPage] = useState<JuzGridPage | null>(null);
 
   // ── Page finder ────────────────────────────────────────────
   const [finderInput, setFinderInput] = useState('');
-  const [targetPage,  setTargetPage]  = useState<number | null>(null);
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Scrolling ──────────────────────────────────────────────
+  const scrollRef   = useRef<HTMLDivElement | null>(null);
+  const sectionRefs = useRef<Map<number, HTMLElement>>(new Map());
+  /** Set while a programmatic scroll runs, so the selector doesn't flicker
+   *  through every Juz it passes on the way to the target. */
+  const suppressSync = useRef(false);
+  const suppressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didInitialScroll = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // One request for the whole Mus'haf — the list is continuous now, so
+      // fetching per Juz would mean 30 round trips.
       const data = studentId !== undefined
-        ? await hifzApi.getStudentJuz(juzNumber, studentId)
-        : await hifzApi.getJuz(juzNumber);
-      setGrid(data);
+        ? await hifzApi.studentAllPages(studentId)
+        : await hifzApi.allPages();
+      const byPage = new Map(data.pages.map(p => [p.pageNumber, p.status]));
+      setPages(
+        Array.from({ length: TOTAL_PAGES }, (_, i) => ({
+          pageNumber: i + 1,
+          status: byPage.get(i + 1) ?? null,
+        }))
+      );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load Juz');
+      toast.error(err instanceof Error ? err.message : 'Failed to load pages');
     } finally {
       setLoading(false);
     }
-  }, [juzNumber, studentId]);
+  }, [studentId]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     try { localStorage.setItem('nazirah-last-juz', String(juzNumber)); } catch {}
   }, [juzNumber]);
 
-  // After grid loads, scroll to the targeted page (if any) and flash it
+  useEffect(() => () => {
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    if (suppressTimer.current) clearTimeout(suppressTimer.current);
+  }, []);
+
+  /** Scroll the list so a Juz starts at the top. */
+  const scrollToJuz = useCallback((juz: number, behavior: ScrollBehavior = 'smooth') => {
+    const container = scrollRef.current;
+    const section = sectionRefs.current.get(juz);
+    if (!container || !section) return;
+    suppressSync.current = true;
+    if (suppressTimer.current) clearTimeout(suppressTimer.current);
+    suppressTimer.current = setTimeout(() => { suppressSync.current = false; }, 700);
+    container.scrollTo({ top: section.offsetTop, behavior });
+  }, []);
+
+  // Open on the Juz the student was last looking at, without animating there.
   useEffect(() => {
-    if (loading || !targetPage) return;
-    const el = document.getElementById(`page-${targetPage}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setHighlighted(targetPage);
-      if (highlightTimer.current) clearTimeout(highlightTimer.current);
-      highlightTimer.current = setTimeout(() => setHighlighted(null), 2000);
+    if (loading || !pages || didInitialScroll.current) return;
+    didInitialScroll.current = true;
+    // Wait a frame so the sections have been laid out and offsetTop is real.
+    requestAnimationFrame(() => scrollToJuz(juzNumber, 'auto'));
+  }, [loading, pages, juzNumber, scrollToJuz]);
+
+  /** Keep the selector in step with whatever Juz is under the top edge. */
+  const handleScroll = useCallback(() => {
+    if (suppressSync.current) return;
+    const container = scrollRef.current;
+    if (!container) return;
+    const y = container.scrollTop + 4;
+    let current = 1;
+    for (const [juz, el] of sectionRefs.current) {
+      if (el.offsetTop <= y) current = juz;
+      else break;
     }
-    setTargetPage(null);
-  }, [loading, targetPage]);
+    setJuzNumber(prev => (prev === current ? prev : current));
+  }, []);
+
+  function flashPage(n: number) {
+    setHighlighted(n);
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    highlightTimer.current = setTimeout(() => setHighlighted(null), 2000);
+  }
 
   function jumpToPage() {
     const n = parseInt(finderInput.trim(), 10);
-    if (isNaN(n) || n < 1 || n > 604) {
-      toast.error('Enter a page number between 1 and 604');
+    if (isNaN(n) || n < 1 || n > TOTAL_PAGES) {
+      toast.error(`Enter a page number between 1 and ${TOTAL_PAGES}`);
       return;
     }
-    const juz = juzForPage(n);
-    if (!juz) { toast.error('Page not found'); return; }
     setFinderInput('');
-    setTargetPage(n);
-    if (juz.juz === juzNumber) {
-      // Already on the right Juz — scroll immediately after short delay for render
-      setTimeout(() => {
-        const el = document.getElementById(`page-${n}`);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          setHighlighted(n);
-          if (highlightTimer.current) clearTimeout(highlightTimer.current);
-          highlightTimer.current = setTimeout(() => setHighlighted(null), 2000);
-        }
-        setTargetPage(null);
-      }, 80);
-    } else {
-      setJuzNumber(juz.juz); // triggers load → scroll effect above fires
-    }
+    // Every page is mounted, so the tile can be scrolled to directly.
+    const el = document.getElementById(`page-${n}`);
+    if (!el) { toast.error('Page not found'); return; }
+    suppressSync.current = true;
+    if (suppressTimer.current) clearTimeout(suppressTimer.current);
+    suppressTimer.current = setTimeout(() => {
+      suppressSync.current = false;
+      handleScroll();
+    }, 700);
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const juz = juzForPage(n);
+    if (juz) setJuzNumber(juz.juz);
+    flashPage(n);
   }
 
   /* ── Patch helpers ─────────────────────────────────────── */
   function patchPage(pageNumber: number, status: PageStatus | null) {
-    setGrid(prev => prev ? {
-      ...prev,
-      pages: prev.pages.map(p => p.pageNumber === pageNumber ? { ...p, status } : p),
-    } : prev);
+    setPages(prev => prev
+      ? prev.map(p => p.pageNumber === pageNumber ? { ...p, status } : p)
+      : prev);
     setEditorPage(prev => prev && prev.pageNumber === pageNumber ? { ...prev, status } : prev);
   }
 
@@ -221,18 +271,21 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
     }
   }
 
-  /* ── Per-Juz colour counts (for the strip above the grid) ── */
+  /* ── Colour counts for the Juz currently in view ─────────── */
+  const activeJuz = useMemo(() => JUZ_MAP.find(j => j.juz === juzNumber), [juzNumber]);
+
   const summary = useMemo(() => {
-    if (!grid) return null;
+    if (!pages || !activeJuz) return null;
     const counts: Record<PageStatus | 'UNTOUCHED', number> = {
       BLACK: 0, RED: 0, AMBER: 0, YELLOW: 0, GREEN: 0, GOLD: 0, UNTOUCHED: 0,
     };
-    for (const p of grid.pages) {
+    for (const p of pages) {
+      if (p.pageNumber < activeJuz.startPage || p.pageNumber > activeJuz.endPage) continue;
       if (p.status === null) counts.UNTOUCHED++;
       else counts[p.status]++;
     }
     return counts;
-  }, [grid]);
+  }, [pages, activeJuz]);
 
   return (
     <div className="flex flex-col h-full">
@@ -246,7 +299,11 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
         </label>
         <select
           value={juzNumber}
-          onChange={e => setJuzNumber(parseInt(e.target.value, 10))}
+          onChange={e => {
+            const j = parseInt(e.target.value, 10);
+            setJuzNumber(j);
+            scrollToJuz(j);
+          }}
           className="flex-1 bg-transparent font-semibold text-sm outline-none cursor-pointer rounded-lg px-2 py-1.5"
           style={{
             color: 'var(--c-text)',
@@ -313,7 +370,7 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
       </div>
 
       {/* ── Summary strip ─────────────────────────────────── */}
-      {summary && grid && (
+      {summary && activeJuz && (
         <div
           className="flex items-center gap-2 px-4 py-2 text-[10px] flex-wrap border-b"
           style={{ borderColor: 'var(--c-border)', color: 'var(--c-text-muted)' }}
@@ -333,36 +390,71 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
             ) : null
           ))}
           <span className="ml-auto" style={{ color: 'var(--c-text-faint)' }}>
-            pp. {grid.startPage}–{grid.endPage}
+            pp. {activeJuz.startPage}–{activeJuz.endPage}
           </span>
         </div>
       )}
 
-      {/* ── Page grid ─────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 scroll-container">
+      {/* ── Continuous page list, one section per Juz ──────── */}
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto scroll-container relative"
+      >
         {loading ? (
           <div className="flex justify-center mt-12"><Spinner size={28} color="var(--c-gold)" /></div>
-        ) : !grid ? (
+        ) : !pages ? (
           <p className="text-center text-sm mt-12" style={{ color: 'var(--c-text-faint)' }}>
-            Failed to load Juz {juzNumber}.
+            Failed to load pages.
           </p>
         ) : (
-          <div
-            className="grid gap-3 mx-auto"
-            style={{
-              gridTemplateColumns: 'repeat(5, 1fr)',
-              maxWidth: 360,
-            }}
-          >
-            {grid.pages.map(page => (
-              <PageTile
-                key={page.pageNumber}
-                page={page}
-                highlighted={highlighted === page.pageNumber}
-                onTap={() => !readOnly && setEditorPage(page)}
-              />
+          <>
+            {JUZ_MAP.map(juz => (
+              <section
+                key={juz.juz}
+                id={`juz-${juz.juz}`}
+                ref={el => {
+                  if (el) sectionRefs.current.set(juz.juz, el);
+                  else sectionRefs.current.delete(juz.juz);
+                }}
+              >
+                {/* Sticky Juz header — the month bar of the calendar */}
+                <div
+                  className="sticky top-0 z-10 flex items-baseline gap-2 px-4 py-2 border-b backdrop-blur"
+                  style={{
+                    backgroundColor: 'var(--c-bg-nav)',
+                    borderColor: 'var(--c-border)',
+                  }}
+                >
+                  <span className="text-xs font-bold" style={{ color: 'var(--c-text)' }}>
+                    Juz {juz.juz}
+                  </span>
+                  <span className="font-amiri text-sm" style={{ color: 'var(--c-gold)' }} lang="ar" dir="rtl">
+                    {JUZ_ARABIC[juz.juz]}
+                  </span>
+                  <span className="ml-auto text-[10px]" style={{ color: 'var(--c-text-faint)' }}>
+                    pp. {juz.startPage}–{juz.endPage}
+                  </span>
+                </div>
+
+                <div
+                  className="grid gap-3 mx-auto px-4 pt-4 pb-6"
+                  style={{ gridTemplateColumns: 'repeat(5, 1fr)', maxWidth: 360 }}
+                >
+                  {pages.slice(juz.startPage - 1, juz.endPage).map(page => (
+                    <PageTile
+                      key={page.pageNumber}
+                      page={page}
+                      highlighted={highlighted === page.pageNumber}
+                      onTap={() => !readOnly && setEditorPage(page)}
+                    />
+                  ))}
+                </div>
+              </section>
             ))}
-          </div>
+            {/* Lets the final Juz scroll up to the top like every other one. */}
+            <div aria-hidden style={{ height: '60vh' }} />
+          </>
         )}
       </div>
 
