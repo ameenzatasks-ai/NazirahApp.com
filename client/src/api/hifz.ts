@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { PageStatus } from '../../../shared/juz-map';
+import type { PageStatus, MemorisationOrder } from '../../../shared/juz-map';
 
 export interface JuzGridPage {
   pageNumber: number;
@@ -75,6 +75,13 @@ export const hifzApi = {
 
   summary: () => api.get<HifzCounts>('/hifz/summary'),
   studentSummary: (studentId: number) => api.get<HifzCounts>(`/hifz/summary/student/${studentId}`),
+
+  /**
+   * Sign-up only: mark everything already memorised as Memorized, worked out
+   * from the page the student is on and the order they memorise in.
+   */
+  backfill: (currentPage: number, order: MemorisationOrder) =>
+    api.post<{ marked: number; skipped: boolean }>('/hifz/backfill', { currentPage, order }),
 
   /** All status'd pages for self (excludes untouched). */
   allPages: () => api.get<{ pages: StatusPage[] }>('/hifz/pages'),

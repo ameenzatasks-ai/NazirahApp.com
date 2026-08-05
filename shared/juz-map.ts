@@ -60,6 +60,53 @@ export function juzForPage(pageNumber: number): JuzInfo | undefined {
 }
 
 /**
+ * The order a student is working through the Mus'haf.
+ *   FORWARD        — page 1 onwards
+ *   BACKWARD       — page 604 backwards
+ *   LAST_JUZ_FIRST — Juz 30 first, then 29, 28 … but each Juz read from its
+ *                    own first page to its last (the common maktab order)
+ */
+export type MemorisationOrder = 'FORWARD' | 'BACKWARD' | 'LAST_JUZ_FIRST';
+
+/**
+ * Which pages a student has already memorised, given the page they are
+ * working on now.
+ *
+ * The current page is deliberately EXCLUDED — it is still in progress, not
+ * finished, so it must not be marked Memorized.
+ *
+ * NOTE: this file is duplicated at server/src/shared/juz-map.ts because the
+ * server's rootDir cannot reach outside src/. Keep the two copies in step.
+ */
+export function memorisedPages(currentPage: number, order: MemorisationOrder): number[] {
+  if (!Number.isInteger(currentPage) || currentPage < 1 || currentPage > 604) return [];
+
+  const pages: number[] = [];
+
+  if (order === 'FORWARD') {
+    for (let p = 1; p < currentPage; p++) pages.push(p);
+    return pages;
+  }
+
+  if (order === 'BACKWARD') {
+    for (let p = currentPage + 1; p <= 604; p++) pages.push(p);
+    return pages;
+  }
+
+  // LAST_JUZ_FIRST: every Juz after the current one is complete, plus the
+  // pages before the current page within the current Juz.
+  const current = juzForPage(currentPage);
+  if (!current) return [];
+  for (const juz of JUZ_MAP) {
+    if (juz.juz > current.juz) {
+      for (let p = juz.startPage; p <= juz.endPage; p++) pages.push(p);
+    }
+  }
+  for (let p = current.startPage; p < currentPage; p++) pages.push(p);
+  return pages.sort((a, b) => a - b);
+}
+
+/**
  * Page memorization status (user-defined semantics).
  *   BLACK  — Listened once
  *   RED    — Read once (recited to the start)

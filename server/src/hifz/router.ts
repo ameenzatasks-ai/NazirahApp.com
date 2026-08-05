@@ -11,7 +11,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import db from '../db';
 import { authenticate, AuthRequest } from '../auth/middleware';
-import { getJuz, type PageStatus } from '../shared/juz-map';
+import { getJuz, memorisedPages, type PageStatus, type MemorisationOrder } from '../shared/juz-map';
 import { sweepRetest } from './retest';
 
 const router = Router();
@@ -211,6 +211,52 @@ router.delete('/page/:page/student/:studentId', authenticate, (req: AuthRequest,
   if (isNaN(page) || page < 1 || page > 604) { res.status(400).json({ error: 'page must be 1..604' }); return; }
   if (!ustadhTeaches(user.id, studentId)) { res.status(403).json({ error: 'Not your student' }); return; }
   res.json(setPageStatus(user.id, studentId, page, null));
+});
+
+// ── First-time memorisation backfill ───────────────────────────────────────
+//
+// A student joining the app has usually memorised a good deal already. Rather
+// than make them tap hundreds of pages, onboarding asks which page they are on
+// and in what order they memorise, and everything before that point is marked
+// Memorized in one go.
+
+const stmtCountPages = db.prepare(`
+  SELECT COUNT(*) AS c FROM student_page_status
+  WHERE student_id = ? AND variant = 'NEW_MADANI'
+`);
+
+const BACKFILL_NOTE = 'Set during sign-up from current page and memorisation order';
+
+const backfillTx = db.transaction((studentId: number, pages: number[]) => {
+  for (const page of pages) {
+    stmtUpsertPage.run(studentId, page, 'GOLD', studentId);
+    stmtInsertHistory.run(studentId, page, null, 'GOLD', studentId, BACKFILL_NOTE);
+  }
+});
+
+router.post('/backfill', authenticate, (req: AuthRequest, res: Response): void => {
+  if (req.user!.role !== 'student') {
+    res.status(403).json({ error: 'Students only' }); return;
+  }
+
+  const parsed = z.object({
+    currentPage: z.number().int().min(1).max(604),
+    order: z.enum(['FORWARD', 'BACKWARD', 'LAST_JUZ_FIRST']),
+  }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.errors[0].message }); return;
+  }
+
+  // Only ever runs on a blank slate. Guarding on this means a repeat call
+  // cannot overwrite real progress the student has since recorded.
+  const { c } = stmtCountPages.get(req.user!.id) as { c: number };
+  if (c > 0) {
+    res.json({ marked: 0, skipped: true, reason: 'Pages already tracked' }); return;
+  }
+
+  const pages = memorisedPages(parsed.data.currentPage, parsed.data.order as MemorisationOrder);
+  backfillTx(req.user!.id, pages);
+  res.json({ marked: pages.length, skipped: false });
 });
 
 // ── Audit log ──────────────────────────────────────────────────────────────

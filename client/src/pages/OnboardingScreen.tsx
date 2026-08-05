@@ -4,30 +4,211 @@ import { BookOpen, GraduationCap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../api/auth';
+import { hifzApi } from '../api/hifz';
 import { saveRole, homeFor } from '../lib/savedRole';
+import { juzForPage, memorisedPages, type MemorisationOrder } from '../../../shared/juz-map';
+import type { User } from '../types';
+import Spinner from '../components/Spinner';
+
+const ORDER_OPTIONS: Array<{ value: MemorisationOrder; title: string; subtitle: string }> = [
+  {
+    value: 'FORWARD',
+    title: 'Front to back',
+    subtitle: 'Starting at page 1 and moving forward',
+  },
+  {
+    value: 'BACKWARD',
+    title: 'Back to front',
+    subtitle: 'Starting at the last page and moving backward',
+  },
+  {
+    value: 'LAST_JUZ_FIRST',
+    title: 'Last Juz first',
+    subtitle: 'Juz 30 first, then 29, 28 … reading each Juz from its own first page',
+  },
+];
 
 export default function OnboardingScreen() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState<'student' | 'ustadh' | null>(null);
 
+  // Students answer two more questions before entering the app, so their
+  // existing memorisation can be filled in rather than tapped out by hand.
+  const [step, setStep] = useState<'role' | 'memorisation'>('role');
+  const [pendingUser, setPendingUser] = useState<User | null>(null);
+  const [pageInput, setPageInput] = useState('');
+  const [order, setOrder] = useState<MemorisationOrder | null>(null);
+  const [saving, setSaving] = useState(false);
+
   const firstName = user?.name?.split(' ')[0] ?? 'there';
   const initial   = user?.name?.[0]?.toUpperCase() ?? '?';
+
+  const pageNum = parseInt(pageInput, 10);
+  const pageValid = Number.isInteger(pageNum) && pageNum >= 1 && pageNum <= 604;
+  const juz = pageValid ? juzForPage(pageNum) : undefined;
+  // Previewed with the same function the server uses, so the number shown
+  // here is the number of pages that will actually be marked.
+  const willMark = pageValid && order ? memorisedPages(pageNum, order).length : 0;
 
   async function pickRole(role: 'student' | 'ustadh') {
     setLoading(role);
     try {
       const { user: updated } = await authApi.setRole(role);
-      setUser(updated);
       // Persist role locally so redeployments don't force re-onboarding
       saveRole(updated, role);
       // Guarantee the tour shows immediately on first entry for both roles
       try { localStorage.removeItem('nazirah-tour-seen'); } catch {}
+
+      if (role === 'student') {
+        // Hold the updated user back rather than publishing it now: the
+        // public layout redirects away from /onboarding the moment a role
+        // exists, which would skip the memorisation questions entirely.
+        // It is published in finish(), together with the navigation.
+        setPendingUser(updated);
+        setStep('memorisation');
+        setLoading(null);
+        return;
+      }
+      setUser(updated);
       navigate(homeFor(role), { replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to set role');
       setLoading(null);
     }
+  }
+
+  function finish() {
+    if (pendingUser) setUser(pendingUser);
+    navigate(homeFor('student'), { replace: true });
+  }
+
+  async function saveMemorisation() {
+    if (!pageValid || !order) return;
+    setSaving(true);
+    try {
+      const { marked } = await hifzApi.backfill(pageNum, order);
+      toast.success(marked > 0 ? `${marked} pages marked as Memorized` : 'Saved');
+      finish();
+    } catch (err) {
+      // The role is already set, so a failure here must not trap the student
+      // on this screen — let them in and they can mark pages themselves.
+      toast.error(err instanceof Error ? err.message : 'Could not save your progress');
+      finish();
+    }
+  }
+
+  if (step === 'memorisation') {
+    return (
+      <div
+        className="min-h-screen flex flex-col px-6 pt-safe pb-safe"
+        style={{ backgroundColor: '#FAF7F0' }}
+      >
+        <div className="w-full mx-auto flex-1 flex flex-col justify-center py-10" style={{ maxWidth: 420 }}>
+          <div className="animate-fade-in-up">
+            <p className="font-amiri text-4xl mb-2" style={{ color: '#B8862A' }} lang="ar">حفظ</p>
+            <h1 className="font-inter font-bold text-xl mb-1" style={{ color: '#0F4C3A' }}>
+              Your memorisation
+            </h1>
+            <p className="text-sm mb-8" style={{ color: 'rgba(15,76,58,0.6)' }}>
+              Tell us where you are and we'll fill in what you've already memorised.
+            </p>
+          </div>
+
+          {/* Q1 — current page */}
+          <div className="animate-fade-in-up mb-7">
+            <label
+              htmlFor="current-page"
+              className="block text-xs font-semibold uppercase tracking-wider mb-2"
+              style={{ color: 'rgba(15,76,58,0.6)' }}
+            >
+              Which page are you currently memorising?
+            </label>
+            <input
+              id="current-page"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={604}
+              value={pageInput}
+              onChange={e => setPageInput(e.target.value)}
+              placeholder="1 – 604"
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={{
+                backgroundColor: 'rgba(15,76,58,0.05)',
+                border: '1.5px solid rgba(15,76,58,0.15)',
+                color: '#1A1208',
+              }}
+            />
+            <p className="text-[11px] mt-1.5" style={{ color: 'rgba(15,76,58,0.45)' }}>
+              {pageInput === ''
+                ? 'The page you are working on right now.'
+                : pageValid
+                  ? `Page ${pageNum} is in Juz ${juz?.juz}.`
+                  : 'Enter a page between 1 and 604.'}
+            </p>
+          </div>
+
+          {/* Q2 — order */}
+          <div className="animate-fade-in-up-delay mb-7">
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'rgba(15,76,58,0.6)' }}>
+              Are you memorising…
+            </p>
+            <div className="flex flex-col" style={{ gap: 10 }}>
+              {ORDER_OPTIONS.map(({ value, title, subtitle }) => {
+                const selected = order === value;
+                return (
+                  <button
+                    key={value}
+                    onClick={() => setOrder(value)}
+                    className="w-full text-left px-4 py-3 rounded-2xl transition-all active:scale-[0.98]"
+                    style={{
+                      backgroundColor: selected ? 'rgba(184,134,42,0.10)' : '#FFFFFF',
+                      border: `2px solid ${selected ? '#B8862A' : 'rgba(15,76,58,0.12)'}`,
+                    }}
+                  >
+                    <p className="font-semibold text-sm" style={{ color: '#0F4C3A' }}>{title}</p>
+                    <p className="text-[11px] mt-0.5 leading-snug" style={{ color: 'rgba(15,76,58,0.55)' }}>
+                      {subtitle}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Preview + actions */}
+          {pageValid && order && (
+            <p
+              className="text-xs text-center mb-3 px-3 py-2 rounded-xl"
+              style={{ color: '#0F4C3A', backgroundColor: 'rgba(184,134,42,0.12)' }}
+            >
+              {willMark > 0
+                ? <>This will mark <strong>{willMark}</strong> page{willMark === 1 ? '' : 's'} as Memorized.</>
+                : <>Nothing to fill in yet — page {pageNum} is your starting point.</>}
+            </p>
+          )}
+
+          <button
+            onClick={saveMemorisation}
+            disabled={!pageValid || !order || saving}
+            className="w-full py-4 rounded-2xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-40"
+            style={{ backgroundColor: '#0F4C3A', color: '#FAF7F0' }}
+          >
+            {saving ? <Spinner size={18} color="#FAF7F0" /> : 'Continue'}
+          </button>
+
+          <button
+            onClick={finish}
+            disabled={saving}
+            className="w-full py-3 mt-2 text-xs font-semibold disabled:opacity-40"
+            style={{ color: 'rgba(15,76,58,0.55)' }}
+          >
+            I haven't started memorising yet
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
