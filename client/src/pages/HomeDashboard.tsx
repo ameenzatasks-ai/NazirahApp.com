@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, BookOpen, Grid3x3, Star, Users, Clock, ChevronRight, Plus } from 'lucide-react';
+import { Flame, BookOpen, Grid3x3, Star, Users, Clock, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { classesApi } from '../api/classes';
 import type { ClassWithMeta } from '../types';
@@ -253,23 +253,12 @@ export default function HomeDashboard() {
             <div>
               <SectionHead title="Your classes" action="Create a class" onAction={() => setSheetOpen(true)} />
               {classes.length === 0 ? (
-                /* With no classes this is the whole point of the screen, so the
-                   action gets the full width rather than living only in the
-                   header pill. */
-                <div className="flex flex-col items-center gap-4 py-6">
-                  <p className="text-sm text-center" style={{ color: 'var(--c-text-muted)' }}>
-                    No classes yet — create your first one.
+                /* The header already carries the "Create a class" button, so
+                   the empty state only explains — it does not repeat it. */
+                <div className="text-center py-8">
+                  <p className="text-sm" style={{ color: 'var(--c-text-muted)' }}>
+                    No classes yet — tap “Create a class” to make your first one.
                   </p>
-                  <button
-                    onClick={() => setSheetOpen(true)}
-                    className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 px-6 text-sm font-bold transition-all active:scale-95"
-                    /* Full width on a phone, capped on desktop so it doesn't
-                       stretch across the whole window. */
-                    style={{ backgroundColor: 'var(--c-gold)', color: '#0d0d0d', maxWidth: 420 }}
-                  >
-                    <Plus className="w-5 h-5" strokeWidth={2.5} />
-                    Create a class
-                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
