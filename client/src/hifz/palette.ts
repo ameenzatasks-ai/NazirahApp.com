@@ -1,12 +1,22 @@
 /**
- * Hifz 6-color palette — lighter, airy fills with vivid accents.
+ * Hifz 6-colour palette — bright, saturated, neon-leaning fills.
  *
- *   BLACK  — Listened    (medium navy blue)
- *   RED    — Read        (medium crimson)
- *   AMBER  — Practiced   (medium orange)
- *   GREEN  — Ready       (medium teal)
- *   GOLD   — Memorized   (medium gold)
- *   YELLOW — Re-test     (medium grey)
+ *   BLACK  — Listened          (neon yellow)
+ *   RED    — Test 1 completed  (neon blue)
+ *   AMBER  — Practiced         (neon orange)
+ *   GREEN  — Test 2 completed  (neon green)
+ *   GOLD   — Memorised         (gold)
+ *   YELLOW — Re-test needed    (grey)
+ *
+ * The keys are the original status codes and stay as they are: they are
+ * written to the database and to every historic row, so renaming them would
+ * mean migrating existing data for no gain. Only what the reader sees — the
+ * label, description and colour — is defined here.
+ *
+ * Every fill is now light, so `text` is a dark tone rather than white and
+ * `accent` is a DARKER shade of the fill (a lighter one would disappear
+ * against it). `textSoft` is the same dark tone at reduced strength, for
+ * secondary copy sitting on a fill.
  */
 import type { PageStatus } from '../../../shared/juz-map';
 import {
@@ -22,74 +32,82 @@ export interface PaletteEntry {
   iconBg: string;
   iconColor: string;
   text: string;
+  /** Dimmed `text`, for secondary copy on top of `fill`. */
+  textSoft: string;
   icon: LucideIcon;
 }
 
 export const PALETTE: Record<PageStatus, PaletteEntry> = {
-  // ── Listened — medium navy / sky-blue ──────────────────────────────────
+  // ── Listened — neon yellow ─────────────────────────────────────────────
   BLACK: {
     label: 'Listened',
     description: "I've listened to this page at least once",
-    fill:      '#1E3F62',
-    accent:    '#4DB8FF',
-    iconBg:    '#2A5280',
-    iconColor: '#93D8FF',
-    text:      '#FFFFFF',
+    fill:      '#FFEF00',
+    accent:    '#C9A800',
+    iconBg:    '#FFF87A',
+    iconColor: '#6B5A00',
+    text:      '#1F1A00',
+    textSoft:  'rgba(31,26,0,0.72)',
     icon: Headphones,
   },
-  // ── Read — medium crimson ───────────────────────────────────────────────
+  // ── Test 1 completed — neon blue ───────────────────────────────────────
   RED: {
-    label: 'Read',
-    description: "I've recited this page once to the ustadh",
-    fill:      '#9B1C1C',
-    accent:    '#FF4040',
-    iconBg:    '#BC2828',
-    iconColor: '#FFB0B0',
-    text:      '#FFFFFF',
+    label: 'Test 1 completed',
+    description: "I've recited this page to the ustadh for the first test",
+    fill:      '#00E1FF',
+    accent:    '#0090A8',
+    iconBg:    '#8AF0FF',
+    iconColor: '#00525F',
+    text:      '#002A33',
+    textSoft:  'rgba(0,42,51,0.72)',
     icon: BookOpen,
   },
-  // ── Practiced — medium orange ──────────────────────────────────────────
+  // ── Practiced — neon orange ────────────────────────────────────────────
   AMBER: {
     label: 'Practiced',
-    description: "I've practiced — about ten reads in, getting ready to read to the ustadh",
-    fill:      '#9B4800',
-    accent:    '#FF7A1A',
-    iconBg:    '#BE5A00',
-    iconColor: '#FFB87A',
-    text:      '#FFFFFF',
+    description: "I've practiced — about ten reads in, getting ready for the second test",
+    fill:      '#FF8A00',
+    accent:    '#B85F00',
+    iconBg:    '#FFC073',
+    iconColor: '#6B3A00',
+    text:      '#2E1800',
+    textSoft:  'rgba(46,24,0,0.75)',
     icon: Pencil,
   },
-  // ── Ready — medium teal ────────────────────────────────────────────────
+  // ── Test 2 completed — neon green ──────────────────────────────────────
   GREEN: {
-    label: 'Ready',
-    description: 'Cleared — I can start memorizing this page',
-    fill:      '#0F6650',
-    accent:    '#00D4A0',
-    iconBg:    '#157A62',
-    iconColor: '#5DFFD8',
-    text:      '#FFFFFF',
+    label: 'Test 2 completed',
+    description: 'Second test passed — I can start memorising this page',
+    fill:      '#00E64A',
+    accent:    '#00942F',
+    iconBg:    '#86F5AC',
+    iconColor: '#00551E',
+    text:      '#002E10',
+    textSoft:  'rgba(0,46,16,0.72)',
     icon: CheckCircle2,
   },
-  // ── Memorized — medium gold ────────────────────────────────────────────
+  // ── Memorised — gold ───────────────────────────────────────────────────
   GOLD: {
-    label: 'Memorized',
-    description: 'Memorized in Sabaq',
-    fill:      '#7A5A00',
-    accent:    '#FFD700',
-    iconBg:    '#9A7200',
-    iconColor: '#FFE880',
-    text:      '#FFFFFF',
+    label: 'Memorised',
+    description: 'Memorised in Sabaq',
+    fill:      '#FFC72E',
+    accent:    '#A8760B',
+    iconBg:    '#FFE39B',
+    iconColor: '#6B4E00',
+    text:      '#2E2100',
+    textSoft:  'rgba(46,33,0,0.75)',
     icon: Star,
   },
-  // ── Re-test — medium grey ──────────────────────────────────────────────
+  // ── Re-test needed — grey ──────────────────────────────────────────────
   YELLOW: {
-    label: 'Re-test',
-    description: 'Was Ready, but more than 10 days have passed — needs re-testing',
-    fill:      '#3F3F46',
-    accent:    '#A1A1AA',
-    iconBg:    '#52525B',
-    iconColor: '#D4D4D8',
-    text:      '#FFFFFF',
+    label: 'Re-test needed',
+    description: 'Ten days have passed since Test 2 — needs re-testing',
+    fill:      '#BFC4CB',
+    accent:    '#6F7883',
+    iconBg:    '#E1E5EA',
+    iconColor: '#3A414B',
+    text:      '#23272D',
+    textSoft:  'rgba(35,39,45,0.75)',
     icon: RotateCw,
   },
 };

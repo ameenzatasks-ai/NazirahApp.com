@@ -108,12 +108,15 @@ export function memorisedPages(currentPage: number, order: MemorisationOrder): n
 
 /**
  * Page memorization status (user-defined semantics).
- *   BLACK  — Listened once
- *   RED    — Read once (recited to the start)
- *   AMBER  — Practiced (~10 reads in, about to read to the start)
- *   GREEN  — Ready to memorize (cleared)
- *   GOLD   — Memorized in Sabaq
- *   YELLOW — Was Green, drifted >=10 days → needs re-test (applied automatically)
+ * The codes are historic and stay as they are — they are stored on every row.
+ * The reader-facing names live in client/src/hifz/palette.ts.
+ *
+ *   BLACK  — Listened
+ *   RED    — Test 1 completed
+ *   AMBER  — Practiced (~10 reads in)
+ *   GREEN  — Test 2 completed
+ *   GOLD   — Memorised in Sabaq
+ *   YELLOW — Re-test needed: 10 days since GREEN, applied automatically
  * A page with no row in the DB is "Untouched" (rendered as empty).
  */
 export type PageStatus =

@@ -44,7 +44,6 @@ function StatusChip({ status, dim = false }: { status: PageStatus | null; dim?: 
         background: PALETTE[status].fill,
         color: PALETTE[status].text,
         opacity: dim ? 0.6 : 1,
-        border: status === 'BLACK' ? '1px solid var(--c-border-soft)' : 'none',
       }}
     >
       {PALETTE[status].label}

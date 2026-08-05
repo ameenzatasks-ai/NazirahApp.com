@@ -88,13 +88,12 @@ function PageTile({ page, onTap, highlighted }: { page: JuzGridPage; onTap: () =
           ? '2.5px solid var(--c-gold)'
           : untouched
             ? '1.5px solid var(--c-border-soft)'
-            : status === 'BLACK'
-              ? '1.5px solid var(--c-border-soft)'
-              : 'none',
+            : 'none',
         boxShadow: highlighted
           ? '0 0 0 4px rgba(255,215,0,0.35)'
           : status === 'GOLD'
-            ? '0 0 0 2px #FFD700 inset, 0 2px 6px rgba(255,215,0,0.25)'
+            // Keeps Memorised distinct from the neighbouring yellow/orange.
+            ? `0 0 0 2px ${PALETTE.GOLD.accent} inset`
             : undefined,
         minHeight: 56,
       }}
@@ -246,7 +245,7 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
         await hifzApi.setPage(editorPage.pageNumber, status);
       }
       if (status === 'GOLD') {
-        toast.success(`Page ${editorPage.pageNumber} memorized — Mashallah`);
+        toast.success(`Page ${editorPage.pageNumber} memorised — Mashallah`);
       }
     } catch (err) {
       patchPage(editorPage.pageNumber, previous);
@@ -380,10 +379,7 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
               <span key={s} className="flex items-center gap-1">
                 <span
                   className="inline-block w-2.5 h-2.5 rounded-sm"
-                  style={{
-                    background: PALETTE[s].fill,
-                    border: s === 'BLACK' ? '1px solid var(--c-border-soft)' : 'none',
-                  }}
+                  style={{ background: PALETTE[s].fill }}
                 />
                 <span className="font-semibold" style={{ color: 'var(--c-text)' }}>{summary[s]}</span>
               </span>

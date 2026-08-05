@@ -68,7 +68,7 @@ function StatusCard({
           <p className="font-bold text-base leading-tight">{p.label}</p>
           <p
             className="text-xs leading-snug mt-0.5"
-            style={{ color: 'rgba(255,255,255,0.78)' }}
+            style={{ color: p.textSoft }}
           >
             {p.description}
           </p>

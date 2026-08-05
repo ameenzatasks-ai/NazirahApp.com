@@ -88,7 +88,7 @@ export default function OnboardingScreen() {
     setSaving(true);
     try {
       const { marked } = await hifzApi.backfill(pageNum, order);
-      toast.success(marked > 0 ? `${marked} pages marked as Memorized` : 'Saved');
+      toast.success(marked > 0 ? `${marked} pages marked as Memorised` : 'Saved');
       finish();
     } catch (err) {
       // The role is already set, so a failure here must not trap the student
@@ -184,7 +184,7 @@ export default function OnboardingScreen() {
               style={{ color: '#0F4C3A', backgroundColor: 'rgba(184,134,42,0.12)' }}
             >
               {willMark > 0
-                ? <>This will mark <strong>{willMark}</strong> page{willMark === 1 ? '' : 's'} as Memorized.</>
+                ? <>This will mark <strong>{willMark}</strong> page{willMark === 1 ? '' : 's'} as Memorised.</>
                 : <>Nothing to fill in yet — page {pageNum} is your starting point.</>}
             </p>
           )}

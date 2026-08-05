@@ -108,8 +108,8 @@ function Slide3() {
                 <Icon className="w-4 h-4" style={{ color: p.iconColor }} strokeWidth={2} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold" style={{ color: '#FFFFFF' }}>{p.label}</p>
-                <p className="text-[10px] leading-snug" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                <p className="text-sm font-bold" style={{ color: p.text }}>{p.label}</p>
+                <p className="text-[10px] leading-snug" style={{ color: p.textSoft }}>
                   {p.description}
                 </p>
               </div>
@@ -126,7 +126,7 @@ function Slide4() {
     { icon: BookOpen,     text: 'Ask your Ustadh for the join code and enter it to enroll in their class.' },
     { icon: Pencil,       text: 'Tap any page tile in the Juz grid and select its current status.' },
     { icon: CheckCircle2, text: 'Save your Nazirah Status weekly to keep a history of your progress.' },
-    { icon: Star,         text: 'Work towards Gold (Memorized) on every page of the Quran!' },
+    { icon: Star,         text: 'Work towards Gold (Memorised) on every page of the Quran!' },
   ];
   return (
     <div className="flex flex-col gap-4 py-2">

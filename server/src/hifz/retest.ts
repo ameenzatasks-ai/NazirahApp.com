@@ -1,8 +1,8 @@
 /**
- * Automatic "Ready → Re-test" ageing.
+ * Automatic "Test 2 completed → Re-test needed" ageing.
  *
- * A page marked GREEN (Ready) goes stale after ten days and must be re-tested,
- * so it flips to YELLOW (Re-test) on its own.
+ * A page marked GREEN (Test 2 completed) goes stale after ten days and must be
+ * re-tested, so it flips to YELLOW (Re-test needed) on its own.
  *
  * The flip is applied lazily, immediately before any read of a student's page
  * statuses, rather than by a scheduled job. A timer is not usable here: the
@@ -12,7 +12,7 @@
  *
  * The clock is `updated_at`, which the status upsert refreshes on every real
  * change. For a row currently GREEN that is exactly when it became GREEN, so
- * re-marking a page Ready restarts its ten days.
+ * re-marking a page as Test 2 completed restarts its ten days.
  *
  * Sweeping writes real rows rather than deriving the colour at render time, so
  * that the stored status, the audit timeline and the UI cannot disagree, and so
@@ -43,7 +43,7 @@ const stmtHistory = db.prepare(`
   VALUES (?, 'NEW_MADANI', ?, 'GREEN', 'YELLOW', ?, ?)
 `);
 
-const NOTE = `Automatic — ${RETEST_AFTER_DAYS} days since marked Ready`;
+const NOTE = `Automatic — ${RETEST_AFTER_DAYS} days since Test 2 completed`;
 
 const sweepTx = db.transaction((studentId: number, pages: number[]) => {
   for (const page of pages) {
