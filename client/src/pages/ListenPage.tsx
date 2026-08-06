@@ -15,6 +15,13 @@ import { juzForPage } from '../../../shared/juz-map';
 
 const TOTAL_PAGES = 604;
 
+/**
+ * Where the recitations are served from. Defaults to same-origin `/audio`,
+ * which the API serves locally; in production it points at object storage,
+ * because 2.47 GB of recordings cannot ride along with the deploy.
+ */
+const AUDIO_BASE = (import.meta.env.VITE_AUDIO_BASE_URL || '/audio').replace(/\/$/, '');
+
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const m = Math.floor(seconds / 60);
@@ -39,7 +46,7 @@ export default function ListenPage() {
   const pageValid = Number.isInteger(pageNum) && pageNum >= 1 && pageNum <= TOTAL_PAGES;
   const juz       = pageValid ? juzForPage(pageNum) : undefined;
   // Files are named 001.mp3 … 604.mp3
-  const audioUrl  = pageValid ? `/audio/${String(pageNum).padStart(3, '0')}.mp3` : null;
+  const audioUrl  = pageValid ? `${AUDIO_BASE}/${String(pageNum).padStart(3, '0')}.mp3` : null;
 
   // Reset transport state whenever the track changes.
   useEffect(() => {
