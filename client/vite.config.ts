@@ -61,6 +61,9 @@ export default defineConfig({
     // here is evaluated by the Vite process itself, which IS the API host.
     proxy: {
       '/api': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+      // The recitations live under server/public, not client/public, so in dev
+      // they must be proxied too — otherwise Vite answers with the SPA shell.
+      '/audio': { target: 'http://127.0.0.1:3001', changeOrigin: true },
     },
   },
 });

@@ -1,44 +1,72 @@
-import { useState } from 'react';
-import { ArrowLeft, Play, Pause } from 'lucide-react';
+/**
+ * ListenPage — play the recitation of a single Mus'haf page.
+ *
+ * Reached from the bottom nav, or from the page editor's "Listen to this page"
+ * button, which deep-links as /listen?page=N.
+ *
+ * The <audio> element is declarative and keyed by page number: changing the
+ * page remounts it, so the previous recitation is torn down by React rather
+ * than left playing in the background.
+ */
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Play, Pause, AlertCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { juzForPage } from '../../../shared/juz-map';
+
+const TOTAL_PAGES = 604;
+
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 
 export default function ListenPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialPage = searchParams.get('page');
 
-  const [pageInput, setPageInput] = useState(initialPage || '');
-  const [playing, setPlaying] = useState(false);
-  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [pageInput, setPageInput] = useState(searchParams.get('page') ?? '');
+  const [playing,  setPlaying]  = useState(false);
+  const [loading,  setLoading]  = useState(false);
+  const [failed,   setFailed]   = useState(false);
+  const [current,  setCurrent]  = useState(0);
+  const [duration, setDuration] = useState(0);
 
-  const pageNum = parseInt(pageInput, 10);
-  const pageValid = Number.isInteger(pageNum) && pageNum >= 1 && pageNum <= 604;
-  const juz = pageValid ? juzForPage(pageNum) : undefined;
-  const audioUrl = pageValid ? `/audio/${String(pageNum).padStart(3, '0')}.mp3` : null;
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  function handlePlay() {
-    if (!audioUrl) return;
+  const pageNum   = parseInt(pageInput, 10);
+  const pageValid = Number.isInteger(pageNum) && pageNum >= 1 && pageNum <= TOTAL_PAGES;
+  const juz       = pageValid ? juzForPage(pageNum) : undefined;
+  // Files are named 001.mp3 … 604.mp3
+  const audioUrl  = pageValid ? `/audio/${String(pageNum).padStart(3, '0')}.mp3` : null;
 
-    if (audio && !playing) {
-      audio.play();
-      setPlaying(true);
-    } else if (!audio) {
-      const newAudio = new Audio(audioUrl);
-      newAudio.onplay = () => setPlaying(true);
-      newAudio.onpause = () => setPlaying(false);
-      newAudio.onended = () => setPlaying(false);
-      newAudio.play();
-      setAudio(newAudio);
-      setPlaying(true);
+  // Reset transport state whenever the track changes.
+  useEffect(() => {
+    setPlaying(false);
+    setFailed(false);
+    setCurrent(0);
+    setDuration(0);
+  }, [audioUrl]);
+
+  function toggle() {
+    const el = audioRef.current;
+    if (!el || failed) return;
+    if (el.paused) {
+      setLoading(true);
+      el.play()
+        .then(() => setLoading(false))
+        .catch(() => { setLoading(false); setFailed(true); });
+    } else {
+      el.pause();
     }
   }
 
-  function handlePause() {
-    if (audio) {
-      audio.pause();
-      setPlaying(false);
-    }
+  function seek(to: number) {
+    const el = audioRef.current;
+    if (!el || !Number.isFinite(duration) || duration <= 0) return;
+    el.currentTime = to;
+    setCurrent(to);
   }
 
   return (
@@ -59,89 +87,125 @@ export default function ListenPage() {
 
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold text-base" style={{ color: 'var(--c-text)' }}>
-            Listen to the Quran
+            Listen
           </h1>
           <p className="text-[10px] uppercase tracking-[0.2em]" style={{ color: 'var(--c-text-muted)' }}>
-            Recitation by Ayman Suwayd
+            Ayman Suwayd
           </p>
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md">
-          {/* Page search */}
+      {/* Body */}
+      <div className="flex-1 px-4 py-6">
+        <div className="mx-auto w-full" style={{ maxWidth: 420 }}>
+          {/* Page finder */}
           <label
-            htmlFor="page-search"
+            htmlFor="listen-page"
             className="block text-xs font-semibold uppercase tracking-wider mb-2"
             style={{ color: 'var(--c-text-muted)' }}
           >
-            Which page do you want to listen to?
+            Which page do you want to hear?
           </label>
           <input
-            id="page-search"
+            id="listen-page"
             type="number"
             inputMode="numeric"
             min={1}
-            max={604}
+            max={TOTAL_PAGES}
             value={pageInput}
-            onChange={e => {
-              setPageInput(e.target.value);
-              setPlaying(false);
-              setAudio(null);
-            }}
-            placeholder="1 – 604"
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none mb-2"
+            onChange={e => setPageInput(e.target.value)}
+            placeholder={`1 – ${TOTAL_PAGES}`}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
               backgroundColor: 'var(--c-bg-card)',
               border: '1.5px solid var(--c-border-soft)',
               color: 'var(--c-text)',
             }}
           />
-          <p className="text-[11px] mb-8" style={{ color: 'var(--c-text-muted)' }}>
-            {pageInput === ''
-              ? 'Enter a page number to listen'
+          <p className="text-[11px] mt-1.5 mb-6" style={{ color: 'var(--c-text-muted)' }}>
+            {pageInput.trim() === ''
+              ? 'Enter a page number to find its recitation.'
               : pageValid
-                ? `Page ${pageNum} is in Juz ${juz?.juz}`
-                : 'Enter a page between 1 and 604'}
+                ? `Page ${pageNum} is in Juz ${juz?.juz}.`
+                : `Enter a page between 1 and ${TOTAL_PAGES}.`}
           </p>
 
-          {/* Audio player */}
-          {pageValid && (
-            <div className="flex flex-col items-center gap-6">
-              <div
-                className="w-full p-8 rounded-3xl text-center"
-                style={{ backgroundColor: 'var(--c-bg-card)' }}
-              >
-                <p className="text-sm mb-2" style={{ color: 'var(--c-text-muted)' }}>
-                  Page {pageNum}
-                </p>
-                <p className="text-2xl font-bold mb-4" style={{ color: 'var(--c-text)' }}>
-                  Juz {juz?.juz}
-                </p>
+          {/* Player */}
+          {pageValid && audioUrl && (
+            <div
+              className="rounded-3xl px-6 py-8 text-center"
+              style={{ backgroundColor: 'var(--c-bg-card)', border: '1px solid var(--c-border-soft)' }}
+            >
+              <p className="text-[10px] uppercase tracking-[0.22em] font-semibold" style={{ color: 'var(--c-text-muted)' }}>
+                Juz {juz?.juz}
+              </p>
+              <p className="font-bold text-2xl mt-1 mb-6" style={{ color: 'var(--c-text)' }}>
+                Page {pageNum}
+              </p>
 
-                {/* Large play button */}
-                <button
-                  onClick={playing ? handlePause : handlePlay}
-                  className="mx-auto w-32 h-32 rounded-full flex items-center justify-center transition-all active:scale-95"
-                  style={{
-                    backgroundColor: 'var(--c-gold)',
-                    color: '#0d0d0d',
-                  }}
-                  aria-label={playing ? 'Pause' : 'Play'}
-                >
-                  {playing ? (
-                    <Pause className="w-16 h-16" fill="currentColor" />
-                  ) : (
-                    <Play className="w-16 h-16 ml-2" fill="currentColor" />
-                  )}
-                </button>
+              {/* Keyed so a page change remounts the element and stops playback */}
+              <audio
+                key={audioUrl}
+                ref={audioRef}
+                src={audioUrl}
+                preload="metadata"
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+                onEnded={() => { setPlaying(false); setCurrent(0); }}
+                onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
+                onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
+                onWaiting={() => setLoading(true)}
+                onPlaying={() => setLoading(false)}
+                onError={() => { setFailed(true); setLoading(false); setPlaying(false); }}
+              />
 
-                {/* Status */}
-                <p className="text-xs mt-4" style={{ color: 'var(--c-text-muted)' }}>
-                  {playing ? 'Now playing' : 'Ready to listen'}
-                </p>
-              </div>
+              {failed ? (
+                <div className="flex flex-col items-center gap-2 py-6">
+                  <AlertCircle className="w-10 h-10" style={{ color: 'var(--c-text-faint)' }} />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>
+                    Recording unavailable
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--c-text-muted)' }}>
+                    Page {pageNum} could not be loaded.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={toggle}
+                    className="mx-auto flex items-center justify-center rounded-full transition-all active:scale-95"
+                    style={{
+                      width: 132, height: 132,
+                      backgroundColor: 'var(--c-gold)',
+                      color: '#0d0d0d',
+                      boxShadow: '0 8px 28px rgba(0,0,0,0.18)',
+                    }}
+                    aria-label={playing ? `Pause page ${pageNum}` : `Play page ${pageNum}`}
+                  >
+                    {playing
+                      ? <Pause className="w-14 h-14" fill="currentColor" strokeWidth={0} />
+                      : <Play  className="w-14 h-14 ml-2" fill="currentColor" strokeWidth={0} />}
+                  </button>
+
+                  {/* Scrub bar — a page can run several minutes */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={duration || 0}
+                    step={0.5}
+                    value={current}
+                    onChange={e => seek(parseFloat(e.target.value))}
+                    disabled={!duration}
+                    className="w-full mt-7 accent-current"
+                    style={{ accentColor: 'var(--c-gold)' }}
+                    aria-label="Seek"
+                  />
+                  <div className="flex justify-between text-[11px] mt-1" style={{ color: 'var(--c-text-muted)' }}>
+                    <span>{formatTime(current)}</span>
+                    <span>{loading ? 'Loading…' : formatTime(duration)}</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

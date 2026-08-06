@@ -78,6 +78,24 @@ app.use('/api/nazirah', nazirahRouter);
 app.use('/api/hifz-tasks', hifzTasksRouter);
 app.use('/api/dawr', dawrRouter);
 
+// ── Page audio (Ayman Suwayd recitations) ──────────────────────
+// Served in every environment, and mounted BEFORE the SPA catch-all below:
+// otherwise a request for a missing track falls through to index.html and the
+// browser receives HTML where it expected audio, which fails silently.
+// `fallthrough: false` makes a missing file a real 404 instead.
+// __dirname is server/src in dev and server/dist once compiled, so ../public
+// resolves to server/public from both.
+app.use('/audio', express.static(path.join(__dirname, '../public/audio'), {
+  maxAge: '30d',        // the recordings never change
+  fallthrough: false,
+}));
+// fallthrough:false rejects a missing track into the error chain, where the
+// global handler would report it as a 500. A track that isn't there is a 404.
+app.use('/audio', (err: Error & { status?: number }, _req: Request, res: Response, next: NextFunction) => {
+  if (err?.status === 404) { res.status(404).json({ error: 'Recording not found' }); return; }
+  next(err);
+});
+
 // ── Production static serving ──────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   // TypeScript compiles src/ into dist/, so __dirname is
