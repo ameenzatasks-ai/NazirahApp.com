@@ -32,6 +32,7 @@ const DawrLog              = lazy(() => import('./pages/hifz/DawrLog'));
 const StudentDawrLog       = lazy(() => import('./pages/hifz/StudentDawrLog'));
 const HifzHistoryPage      = lazy(() => import('./pages/class/HifzHistoryPage'));
 const SettingsPage         = lazy(() => import('./pages/SettingsPage'));
+const ListenPage           = lazy(() => import('./pages/ListenPage'));
 
 /* ── Spinner fallback ────────────────────────────────────── */
 function PageFallback() {
@@ -130,6 +131,9 @@ function AppRoutes() {
           {/* Date picker → then /nazirah?date=… (from ClassShell button) */}
           <Route path="/nazirah/date" element={<NazirahDatePicker />} />
           <Route path="/nazirah/audit" element={<AuditPage />} />
+
+          {/* Listen to the Quran — direct access (bottom nav) */}
+          <Route path="/listen" element={<ListenPage />} />
 
           {/* Classes list */}
           <Route path="/classes" element={<ClassesList />} />

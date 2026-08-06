@@ -38,16 +38,16 @@ export interface PaletteEntry {
 }
 
 export const PALETTE: Record<PageStatus, PaletteEntry> = {
-  // ── Listened — neon yellow ─────────────────────────────────────────────
+  // ── Listened — neon red ───────────────────────────────────────────────
   BLACK: {
     label: 'Listened',
     description: "I've listened to this page at least once",
-    fill:      '#FFEF00',
-    accent:    '#C9A800',
-    iconBg:    '#FFF87A',
-    iconColor: '#6B5A00',
-    text:      '#1F1A00',
-    textSoft:  'rgba(31,26,0,0.72)',
+    fill:      '#FF2D2D',
+    accent:    '#B01E1E',
+    iconBg:    '#FF7070',
+    iconColor: '#7A0000',
+    text:      '#4A0000',
+    textSoft:  'rgba(74,0,0,0.72)',
     icon: Headphones,
   },
   // ── Test 1 completed — neon blue ───────────────────────────────────────
@@ -65,13 +65,13 @@ export const PALETTE: Record<PageStatus, PaletteEntry> = {
   // ── Practiced — neon orange ────────────────────────────────────────────
   AMBER: {
     label: 'Practiced',
-    description: "I've practiced — about ten reads in, getting ready for the second test",
-    fill:      '#FF8A00',
-    accent:    '#B85F00',
-    iconBg:    '#FFC073',
-    iconColor: '#6B3A00',
-    text:      '#2E1800',
-    textSoft:  'rgba(46,24,0,0.75)',
+    description: "I've practiced it 18 times since my 1st test, and read to a senior as many times as instructed",
+    fill:      '#FF6600',
+    accent:    '#CC4400',
+    iconBg:    '#FF9955',
+    iconColor: '#7A2000',
+    text:      '#3A1500',
+    textSoft:  'rgba(58,21,0,0.75)',
     icon: Pencil,
   },
   // ── Test 2 completed — neon green ──────────────────────────────────────

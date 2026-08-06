@@ -11,7 +11,8 @@
  *   • Footer:  "Mark as untouched" (only if a status is currently set)
  */
 import { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Headphones } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { PageStatus } from '../../../shared/juz-map';
 import { PALETTE, ALL_STATUSES } from './palette';
 
@@ -90,6 +91,8 @@ function StatusCard({
 export default function PageEditor({
   open, pageNumber, currentStatus, onSelect, onUntouch, onClose,
 }: Props) {
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = '';
@@ -161,12 +164,26 @@ export default function PageEditor({
           ))}
         </div>
 
-        {/* Untouch (only if status set) */}
-        {currentStatus !== null && (
-          <div className="px-3 pb-3">
+        {/* Listen to this page button */}
+        <div className="px-3 pb-3 flex gap-2">
+          <button
+            onClick={() => navigate(`/listen?page=${pageNumber}`)}
+            className="flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            style={{
+              backgroundColor: 'var(--c-gold)',
+              color: '#0d0d0d',
+            }}
+            aria-label="Listen to this page"
+          >
+            <Headphones className="w-4 h-4" />
+            Listen to this page
+          </button>
+
+          {/* Untouch (only if status set) */}
+          {currentStatus !== null && (
             <button
               onClick={onUntouch}
-              className="w-full py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
+              className="flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
               style={{
                 backgroundColor: 'var(--c-bg-subtle)',
                 color: 'var(--c-text-muted)',
@@ -175,8 +192,8 @@ export default function PageEditor({
             >
               Mark as untouched
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
