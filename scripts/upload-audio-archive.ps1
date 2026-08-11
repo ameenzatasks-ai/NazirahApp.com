@@ -33,11 +33,43 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-if (-not (Get-Command ia -ErrorAction SilentlyContinue)) {
-  Write-Host "The archive.org CLI is not installed. Run:" -ForegroundColor Yellow
+# pip installs the console script into a Scripts directory that is often not on
+# PATH — notably under the Microsoft Store build of Python — so resolve it
+# directly rather than relying on the shell finding it.
+function Resolve-IaExe {
+  $onPath = Get-Command ia -ErrorAction SilentlyContinue
+  if ($onPath) { return $onPath.Source }
+
+  # pip reports where the package landed; the console script sits in a Scripts
+  # directory alongside site-packages.
+  $line = & pip show internetarchive 2>$null | Select-String '^Location:\s*(.+)$'
+  if ($line) {
+    $loc = $line.Matches[0].Groups[1].Value.Trim()
+    $candidate = Join-Path (Split-Path $loc -Parent) 'Scripts\ia.exe'
+    if (Test-Path $candidate) { return $candidate }
+  }
+  return $null
+}
+
+$ia = Resolve-IaExe
+if (-not $ia) {
+  Write-Host "The archive.org CLI was not found. Run:" -ForegroundColor Yellow
   Write-Host "  pip install internetarchive" -ForegroundColor Cyan
   Write-Host "  ia configure" -ForegroundColor Cyan
-  Write-Host "then open a NEW terminal and run this script again."
+  exit 1
+}
+
+# Uploading needs credentials; without them every call fails one by one.
+$configured = @(
+  (Join-Path $env:USERPROFILE '.config\internetarchive\ia.ini'),
+  (Join-Path $env:USERPROFILE '.ia'),
+  (Join-Path $env:APPDATA 'internetarchive\ia.ini')
+) | Where-Object { Test-Path $_ }
+
+if (-not $configured) {
+  Write-Host "No archive.org credentials found. Run this first:" -ForegroundColor Yellow
+  Write-Host "  `"$ia`" configure" -ForegroundColor Cyan
+  Write-Host "It asks for the email and password of your archive.org account."
   exit 1
 }
 
@@ -65,7 +97,7 @@ foreach ($f in $files) {
 
   # Uploaded one file per call rather than as a folder: a single failure then
   # costs one retry instead of restarting the batch.
-  & ia upload $Identifier $f.FullName `
+  & $ia upload $Identifier $f.FullName `
       --metadata="title:$Title" `
       --metadata="mediatype:audio" `
       --metadata="collection:opensource_audio" `
