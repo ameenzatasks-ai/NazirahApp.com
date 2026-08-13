@@ -97,11 +97,16 @@ foreach ($f in $files) {
 
   # Uploaded one file per call rather than as a folder: a single failure then
   # costs one retry instead of restarting the batch.
+  #
+  # stderr is discarded with 2>$null rather than merged with 2>&1: `ia` draws
+  # its progress bar on stderr, and Windows PowerShell wraps merged native
+  # stderr in ErrorRecords, which made a completely successful upload look
+  # like a failure. Success is judged by exit code alone.
   & $ia upload $Identifier $f.FullName `
       --metadata="title:$Title" `
       --metadata="mediatype:audio" `
       --metadata="collection:opensource_audio" `
-      --retries=3 2>&1 | Out-Null
+      --retries=3 2>$null | Out-Null
 
   if ($LASTEXITCODE -ne 0) {
     $failed += $f.Name
