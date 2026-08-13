@@ -89,6 +89,12 @@ if ($Pilot) {
 
 $failed = @()
 $n = 0
+
+# 'Stop' is right for the setup above, where any failure should halt. It is
+# wrong for the loop: `ia` writing a progress bar to stderr would end the run
+# on the first file. Failures here are detected by exit code instead.
+$ErrorActionPreference = 'Continue'
+
 foreach ($f in $files) {
   $n++
   Write-Progress -Activity "Uploading to archive.org" `
@@ -98,15 +104,16 @@ foreach ($f in $files) {
   # Uploaded one file per call rather than as a folder: a single failure then
   # costs one retry instead of restarting the batch.
   #
-  # stderr is discarded with 2>$null rather than merged with 2>&1: `ia` draws
-  # its progress bar on stderr, and Windows PowerShell wraps merged native
-  # stderr in ErrorRecords, which made a completely successful upload look
-  # like a failure. Success is judged by exit code alone.
+  # `ia` draws its progress bar on stderr. Windows PowerShell turns a native
+  # command's stderr into ErrorRecords whenever it is redirected — with 2>&1
+  # OR 2>$null — and under $ErrorActionPreference = 'Stop' that aborts the run
+  # on the very first file, even though the upload itself succeeded. So stderr
+  # is left alone and success is judged by exit code only.
   & $ia upload $Identifier $f.FullName `
       --metadata="title:$Title" `
       --metadata="mediatype:audio" `
       --metadata="collection:opensource_audio" `
-      --retries=3 2>$null | Out-Null
+      --retries=3 | Out-Null
 
   if ($LASTEXITCODE -ne 0) {
     $failed += $f.Name
