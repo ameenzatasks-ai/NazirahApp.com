@@ -28,7 +28,12 @@ param(
   [string] $Source = "C:\Users\ameen\OneDrive\Desktop\Apps\The Hifz App\Page Audio Recordings",
   [string] $Title  = "Qur'an page recitations (New Madani Mus'haf) - Ayman Suwayd",
   # Upload only page 1, to prove the pipeline before moving 2.47 GB.
-  [switch] $Pilot
+  [switch] $Pilot,
+  # Files per `ia upload` call. archive.org queues one ingest task per call and
+  # makes the item unplayable while tasks run, so this must NOT be 1.
+  [int] $BatchSize = 100,
+  # How long to wait for archive.org's ingest queue to clear before uploading.
+  [int] $MaxQueueWaitMinutes = 90
 )
 
 $ErrorActionPreference = 'Stop'
@@ -109,6 +114,24 @@ if ($Pilot) {
   Write-Host "Re-running skips files already present, so an interrupted run is safe." -ForegroundColor DarkGray
 }
 
+# archive.org marks an item's servers unavailable while its ingest queue is
+# running, which makes even already-uploaded tracks fail to play. Adding to a
+# busy queue extends that outage, so wait for it to clear first.
+if (-not $Pilot) {
+  $waitedMin = 0
+  while ($waitedMin -lt $MaxQueueWaitMinutes) {
+    $meta = & $ia metadata $Identifier 2>$null
+    if (-not $meta -or $meta -notmatch '"pending_tasks":\s*true') { break }
+    $queued = ([regex]::Matches($meta, '"cmd":\s*"[^"]+"')).Count
+    Write-Host "  archive.org still processing ($queued task(s)); waiting..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 60
+    $waitedMin++
+  }
+  if ($waitedMin -ge $MaxQueueWaitMinutes) {
+    Write-Host "Queue still busy after $MaxQueueWaitMinutes min; continuing anyway." -ForegroundColor Yellow
+  }
+}
+
 $failed = @()
 $n = 0
 
@@ -117,29 +140,41 @@ $n = 0
 # on the first file. Failures here are detected by exit code instead.
 $ErrorActionPreference = 'Continue'
 
-foreach ($f in $files) {
+# Files are sent in BATCHES, not one per call. archive.org queues a separate
+# ingest task for every `ia upload` invocation, and while those tasks run it
+# marks the item's servers unavailable — so uploading 604 files individually
+# queues 604 tasks and makes the recordings unplayable for hours, including
+# the ones that already finished. Batching keeps that queue to a handful.
+$batches = [System.Collections.Generic.List[object]]::new()
+for ($i = 0; $i -lt $files.Count; $i += $BatchSize) {
+  $end = [Math]::Min($i + $BatchSize - 1, $files.Count - 1)
+  $batches.Add(@($files[$i..$end]))
+}
+Write-Host "Sending in $($batches.Count) batch(es) of up to $BatchSize" -ForegroundColor DarkGray
+
+foreach ($batch in $batches) {
   $n++
   Write-Progress -Activity "Uploading to archive.org" `
-                 -Status "$($f.Name)  ($n of $($files.Count))" `
-                 -PercentComplete (($n / $files.Count) * 100)
+                 -Status "batch $n of $($batches.Count)  ($($batch.Count) files)" `
+                 -PercentComplete (($n / $batches.Count) * 100)
 
-  # Uploaded one file per call rather than as a folder: a single failure then
-  # costs one retry instead of restarting the batch.
-  #
   # `ia` draws its progress bar on stderr. Windows PowerShell turns a native
   # command's stderr into ErrorRecords whenever it is redirected — with 2>&1
   # OR 2>$null — and under $ErrorActionPreference = 'Stop' that aborts the run
   # on the very first file, even though the upload itself succeeded. So stderr
   # is left alone and success is judged by exit code only.
-  & $ia upload $Identifier $f.FullName `
+  $paths = $batch | ForEach-Object { $_.FullName }
+  & $ia upload $Identifier @paths `
       --metadata="title:$Title" `
       --metadata="mediatype:audio" `
       --metadata="collection:opensource_audio" `
       --retries=3 | Out-Null
 
   if ($LASTEXITCODE -ne 0) {
-    $failed += $f.Name
-    Write-Host "  failed: $($f.Name)" -ForegroundColor Red
+    $failed += $batch | ForEach-Object { $_.Name }
+    Write-Host "  batch $n failed" -ForegroundColor Red
+  } else {
+    Write-Host "  batch $n of $($batches.Count) done ($($batch.Count) files)" -ForegroundColor DarkGray
   }
 }
 Write-Progress -Activity "Uploading to archive.org" -Completed
