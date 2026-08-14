@@ -85,15 +85,34 @@ app.use('/api/dawr', dawrRouter);
 // `fallthrough: false` makes a missing file a real 404 instead.
 // __dirname is server/src in dev and server/dist once compiled, so ../public
 // resolves to server/public from both.
+// Local copies first — that is what development has, and it avoids a round
+// trip to the archive when the file is right here.
 app.use('/audio', express.static(path.join(__dirname, '../public/audio'), {
   maxAge: '30d',        // the recordings never change
-  fallthrough: false,
+  fallthrough: true,    // not here? fall through to the redirect below
 }));
-// fallthrough:false rejects a missing track into the error chain, where the
-// global handler would report it as a 500. A track that isn't there is a 404.
-app.use('/audio', (err: Error & { status?: number }, _req: Request, res: Response, next: NextFunction) => {
-  if (err?.status === 404) { res.status(404).json({ error: 'Recording not found' }); return; }
-  next(err);
+
+// The 2.47 GB of recordings cannot ship with the deploy, so anything not on
+// disk is redirected to the copy hosted on archive.org.
+//
+// Resolved at RUNTIME rather than baked into the client at build time. The
+// build-time route silently produced a bundle still pointing at /audio when
+// the variable did not reach the build, which fails invisibly — a redirect
+// here works for clients that are already deployed, needs no rebuild, and can
+// be repointed by restarting with a different value.
+const AUDIO_REMOTE_BASE = (
+  process.env.AUDIO_REMOTE_BASE || 'https://archive.org/download/hifz-app-ayman-suwayd-pages'
+).replace(/\/$/, '');
+
+app.get('/audio/:file', (req: Request, res: Response): void => {
+  // Only ever redirect to NNN.mp3. basename plus this pattern keeps a crafted
+  // path from turning the endpoint into an open redirect.
+  const file = path.basename(req.params.file);
+  if (!/^\d{3}\.mp3$/.test(file)) {
+    res.status(404).json({ error: 'Recording not found' });
+    return;
+  }
+  res.redirect(302, `${AUDIO_REMOTE_BASE}/${file}`);
 });
 
 // ── Production static serving ──────────────────────────────────

@@ -82,6 +82,28 @@ if ($Pilot) {
   $files = $files | Select-Object -First 1
   Write-Host "PILOT: uploading $($files[0].Name) only" -ForegroundColor Cyan
 } else {
+  # Ask the item what it already holds and skip those. A 2.47 GB transfer is
+  # very likely to be interrupted at least once, and without this every resume
+  # would re-send everything from the beginning.
+  Write-Host "Checking what is already uploaded..." -ForegroundColor DarkGray
+  $meta = & $ia metadata $Identifier 2>$null
+  if ($meta) {
+    $present = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($m in [regex]::Matches($meta, '"name":\s*"([^"]+\.mp3)"')) {
+      [void]$present.Add($m.Groups[1].Value)
+    }
+    if ($present.Count -gt 0) {
+      $before = $files.Count
+      $files = $files | Where-Object { -not $present.Contains($_.Name) }
+      Write-Host "  $($present.Count) already present; $($before - $files.Count) skipped" -ForegroundColor DarkGray
+    }
+  }
+  if ($files.Count -eq 0) {
+    Write-Host "Everything is already uploaded." -ForegroundColor Green
+    Write-Host "VITE_AUDIO_BASE_URL=https://archive.org/download/$Identifier" -ForegroundColor Cyan
+    exit 0
+  }
+
   $sizeGB = [math]::Round((($files | Measure-Object -Property Length -Sum).Sum / 1GB), 2)
   Write-Host "Uploading $($files.Count) files ($sizeGB GB) to item '$Identifier'" -ForegroundColor Cyan
   Write-Host "Re-running skips files already present, so an interrupted run is safe." -ForegroundColor DarkGray
