@@ -33,7 +33,10 @@ param(
   # makes the item unplayable while tasks run, so this must NOT be 1.
   [int] $BatchSize = 100,
   # How long to wait for archive.org's ingest queue to clear before uploading.
-  [int] $MaxQueueWaitMinutes = 90
+  [int] $MaxQueueWaitMinutes = 90,
+  # Proceed once the queue is down to this many tasks. Waiting for absolute
+  # zero stalls indefinitely on trailing tasks that do no real harm.
+  [int] $QueueTolerance = 5
 )
 
 $ErrorActionPreference = 'Stop'
@@ -123,6 +126,13 @@ if (-not $Pilot) {
     $meta = & $ia metadata $Identifier 2>$null
     if (-not $meta -or $meta -notmatch '"pending_tasks":\s*true') { break }
     $queued = ([regex]::Matches($meta, '"cmd":\s*"[^"]+"')).Count
+    # Only a LARGE queue makes the item unavailable for long. A couple of
+    # trailing tasks are harmless, and waiting on them once cost 90 minutes
+    # and stalled the upload entirely.
+    if ($queued -le $QueueTolerance) {
+      Write-Host "  $queued task(s) outstanding - low enough to proceed" -ForegroundColor DarkGray
+      break
+    }
     Write-Host "  archive.org still processing ($queued task(s)); waiting..." -ForegroundColor DarkGray
     Start-Sleep -Seconds 60
     $waitedMin++
