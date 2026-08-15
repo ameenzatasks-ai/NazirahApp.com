@@ -9,11 +9,13 @@
  * than left playing in the background.
  */
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Play, Pause, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Play, Pause, AlertCircle, RotateCw } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { juzForPage } from '../../../shared/juz-map';
 
 const TOTAL_PAGES = 604;
+/** Transient archive errors are common during ingest; do not give up at once. */
+const RETRY_LIMIT = 3;
 
 /**
  * Where the recitations are served from. Defaults to same-origin `/audio`,
@@ -39,8 +41,10 @@ export default function ListenPage() {
   const [failed,   setFailed]   = useState(false);
   const [current,  setCurrent]  = useState(0);
   const [duration, setDuration] = useState(0);
+  const [attempt,  setAttempt]  = useState(0);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef   = useRef<HTMLAudioElement | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const pageNum   = parseInt(pageInput, 10);
   const pageValid = Number.isInteger(pageNum) && pageNum >= 1 && pageNum <= TOTAL_PAGES;
@@ -54,7 +58,42 @@ export default function ListenPage() {
     setFailed(false);
     setCurrent(0);
     setDuration(0);
+    setAttempt(0);
   }, [audioUrl]);
+
+  useEffect(() => () => {
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+  }, []);
+
+  /**
+   * The recordings are served from an archive that returns transient errors
+   * while it is ingesting uploads. Treating the first error as final made a
+   * momentary blip look like a permanently broken page — it stayed broken
+   * until the page number was changed. So retry a few times, backing off,
+   * before admitting defeat.
+   */
+  function handleError() {
+    setLoading(false);
+    setPlaying(false);
+    if (attempt >= RETRY_LIMIT) {
+      setFailed(true);
+      return;
+    }
+    const next = attempt + 1;
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    retryTimer.current = setTimeout(() => {
+      setAttempt(next);
+      audioRef.current?.load();
+    }, 700 * next);
+  }
+
+  /** Manual recovery, so a failed page need not be navigated away from. */
+  function retryNow() {
+    setFailed(false);
+    setAttempt(0);
+    setLoading(true);
+    audioRef.current?.load();
+  }
 
   function toggle() {
     const el = audioRef.current;
@@ -160,10 +199,16 @@ export default function ListenPage() {
                 onPause={() => setPlaying(false)}
                 onEnded={() => { setPlaying(false); setCurrent(0); }}
                 onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
-                onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
+                onLoadedMetadata={e => {
+                  setDuration(e.currentTarget.duration);
+                  // Retries count CONSECUTIVE failures. Once a load succeeds
+                  // the slate is clean, so an earlier blip cannot make a much
+                  // later one give up prematurely.
+                  setAttempt(0);
+                }}
                 onWaiting={() => setLoading(true)}
                 onPlaying={() => setLoading(false)}
-                onError={() => { setFailed(true); setLoading(false); setPlaying(false); }}
+                onError={handleError}
               />
 
               {failed ? (
@@ -172,9 +217,17 @@ export default function ListenPage() {
                   <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>
                     Recording unavailable
                   </p>
-                  <p className="text-xs" style={{ color: 'var(--c-text-muted)' }}>
-                    Page {pageNum} could not be loaded.
+                  <p className="text-xs px-4" style={{ color: 'var(--c-text-muted)' }}>
+                    Page {pageNum} could not be loaded after {RETRY_LIMIT} attempts.
                   </p>
+                  <button
+                    onClick={retryNow}
+                    className="mt-3 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
+                    style={{ backgroundColor: 'var(--c-gold)', color: '#0d0d0d' }}
+                  >
+                    <RotateCw className="w-4 h-4" />
+                    Try again
+                  </button>
                 </div>
               ) : (
                 <>
