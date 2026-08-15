@@ -68,6 +68,15 @@ configurePassport();
 app.use(passportInstance.initialize());
 app.use(passportInstance.session());
 
+// ── Health check ───────────────────────────────────────────────
+// Deliberately does NOT touch the database. The host restarts a container that
+// fails this, so it must answer the question "is this process serving?" — if it
+// reported the database instead, a brief blip at Turso would cycle the app and
+// take the whole site down rather than just the queries that needed it.
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', uptime: Math.round(process.uptime()) });
+});
+
 // ── API Routes ─────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
 app.use('/api/classes', classesRouter);
@@ -144,8 +153,21 @@ function getLanIPs(): string[] {
   return out;
 }
 
-function start() {
-  runMigrations();
+async function start() {
+  // Awaited before listening: the migrations create and reshape every table,
+  // so serving requests first would expose a half-built schema. Against a
+  // local file this raced invisibly; against a remote database it certainly
+  // would.
+  try {
+    await runMigrations();
+  } catch (err) {
+    // No point serving with an unusable schema — fail loudly so the host
+    // reports a failed deploy rather than a running but broken app.
+    console.error('FATAL: database migrations failed');
+    console.error(err);
+    process.exit(1);
+  }
+
   // Bind to 0.0.0.0 so LAN devices (phone, tablet, laptop) can reach the API.
   app.listen(PORT, '0.0.0.0', () => {
     const lan = getLanIPs();

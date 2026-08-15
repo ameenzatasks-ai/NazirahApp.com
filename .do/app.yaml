@@ -1,0 +1,91 @@
+# DigitalOcean App Platform spec for The Hifz App.
+#
+# Create the app from this file:
+#   doctl apps create --spec .do/app.yaml
+# or paste it into the dashboard: Apps -> Create -> Edit App Spec.
+#
+# ── Why ONE component and not two ────────────────────────────────────────────
+# App Platform encourages splitting a frontend static site from a backend
+# service, and a static site would be cheaper. That is the wrong shape here:
+# authentication is a JWT in a cookie, and the client and API must therefore
+# share an origin. Splitting them would mean cross-site cookies, a CORS policy
+# and SameSite=None — a security-relevant rework for a couple of dollars.
+#
+# The server already serves the built client in production (see server/src/
+# index.ts), so one web service runs the whole app exactly as it does today.
+#
+# ── Database ─────────────────────────────────────────────────────────────────
+# App Platform containers have an ephemeral filesystem: a SQLite file beside
+# the app is destroyed on every deploy and restart. The database therefore
+# lives in Turso, addressed by DATABASE_URL.
+
+name: the-hifz-app
+region: lon    # London — closest to the users; move if that changes
+
+services:
+  - name: web
+    github:
+      repo: ameenzatasks-ai/TheHifzApp.com
+      branch: master
+      deploy_on_push: true
+
+    # Builds both workspaces; `npm start` then runs the server, which serves
+    # client/dist. `npm ci` rather than `npm install` for a reproducible build.
+    build_command: npm ci && npm run build
+    run_command: npm start
+
+    environment_slug: node-js
+    instance_size_slug: basic-xxs    # ~$5/month
+    instance_count: 1
+
+    # App Platform injects PORT; the server reads it and falls back to 3001.
+    http_port: 8080
+
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 20
+      period_seconds: 30
+
+    routes:
+      - path: /
+
+    envs:
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production
+
+      # APP_URL is filled in by App Platform with this app's own URL, so the
+      # OAuth callback and CORS origin cannot drift from where the app is
+      # actually served — which is exactly what broke Google sign-in before.
+      - key: CLIENT_ORIGIN
+        scope: RUN_AND_BUILD_TIME
+        value: ${APP_URL}
+
+      # ── Secrets: set these in the dashboard, do not commit values ──────────
+      - key: JWT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+
+      # Turso: libsql://<database>-<org>.turso.io
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+
+      - key: DATABASE_AUTH_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+
+      - key: GOOGLE_CLIENT_ID
+        scope: RUN_TIME
+        type: SECRET
+
+      - key: GOOGLE_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+
+      # Where the page recitations are served from. The server falls back to
+      # this same archive item if unset, so it is here only to make the
+      # dependency visible and repointable.
+      - key: AUDIO_REMOTE_BASE
+        scope: RUN_TIME
+        value: https://archive.org/download/hifz-app-ayman-suwayd-pages
