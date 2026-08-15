@@ -1,0 +1,7 @@
+ia.exe : Traceback (most recent call last):
+At C:\Users\ameen\OneDrive\Desktop\Apps\The Nazira App\scripts\upload-audio-archive.ps1:97 char:11
++   $meta = & $ia metadata $Identifier 2>$null
++           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

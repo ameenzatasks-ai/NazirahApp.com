@@ -5,7 +5,7 @@ import { authenticate as requireAuth, AuthRequest } from '../auth/middleware';
 const router = Router({ mergeParams: true }); // inherits :classId from parent mount
 
 // POST /api/classes/:classId/invite
-router.post('/', requireAuth, (req: AuthRequest, res: Response) => {
+router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
   const user = req.user!;
   const classId = Number((req.params as { classId: string }).classId);
   const { phone } = req.body as { phone?: string };
@@ -15,7 +15,7 @@ router.post('/', requireAuth, (req: AuthRequest, res: Response) => {
   }
 
   // Verify caller is the ustadh who owns this class
-  const cls = db.prepare(
+  const cls = await db.prepare(
     'SELECT id, name, join_code, ustadh_id FROM classes WHERE id = ?'
   ).get(classId) as { id: number; name: string; join_code: string; ustadh_id: number } | undefined;
 

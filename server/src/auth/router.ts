@@ -42,18 +42,18 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
   const { name, username, password } = parsed.data;
   const usernameLower = username.toLowerCase();
 
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(usernameLower);
+  const existing = await db.prepare('SELECT id FROM users WHERE username = ?').get(usernameLower);
   if (existing) {
     res.status(409).json({ error: 'Username is already taken' });
     return;
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const result = db
+  const result = await db
     .prepare('INSERT INTO users (name, username, password_hash) VALUES (?, ?, ?)')
     .run(name.trim(), usernameLower, passwordHash);
 
-  const user = db
+  const user = await db
     .prepare('SELECT id, google_id, name, email, username, avatar_url, role, created_at FROM users WHERE id = ?')
     .get(result.lastInsertRowid);
 
@@ -75,7 +75,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
   }
 
   const { username, password } = parsed.data;
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.toLowerCase()) as any;
+  const user = await db.prepare('SELECT * FROM users WHERE username = ?').get(username.toLowerCase()) as any;
 
   if (!user?.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
     res.status(401).json({ error: 'Incorrect username or password' });
@@ -94,7 +94,7 @@ router.get('/me', authenticate, (req: AuthRequest, res: Response): void => {
 });
 
 // ── Set role (first login only) ───────────────────────────────
-router.patch('/role', authenticate, (req: AuthRequest, res: Response): void => {
+router.patch('/role', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   if (user.role) {
     res.status(403).json({ error: 'Role already set and cannot be changed' });
@@ -107,8 +107,8 @@ router.patch('/role', authenticate, (req: AuthRequest, res: Response): void => {
     return;
   }
 
-  db.prepare('UPDATE users SET role = ? WHERE id = ?').run(parsed.data.role, user.id);
-  const updated = db
+  await db.prepare('UPDATE users SET role = ? WHERE id = ?').run(parsed.data.role, user.id);
+  const updated = await db
     .prepare('SELECT id, google_id, name, email, username, avatar_url, role, created_at FROM users WHERE id = ?')
     .get(user.id);
 

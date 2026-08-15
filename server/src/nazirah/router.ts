@@ -19,8 +19,8 @@ import { sweepRetest } from '../hifz/retest';
 const router = Router();
 
 /** Confirms an ustadh teaches the given student in at least one of their classes. */
-function ustadhTeaches(ustadhId: number, studentId: number): boolean {
-  return !!db.prepare(`
+async function ustadhTeaches(ustadhId: number, studentId: number): Promise<boolean> {
+  return !!await db.prepare(`
     SELECT 1 FROM enrolments e
     JOIN classes c ON c.id = e.class_id
     WHERE c.ustadh_id = ? AND e.student_id = ?
@@ -119,21 +119,23 @@ function formatLogSummary(r: any) {
 }
 
 /** Snapshot the student's current pages under a given date (idempotent). */
-const saveSnapshot = db.transaction((studentId: number, logDate: string, pages: PageRow[]) => {
+const saveSnapshot = db.transaction(async (studentId: number, logDate: string, pages: PageRow[]) => {
   // Delete any existing log for this date (cascade removes its pages)
-  stmtDeleteLog.run(studentId, logDate);
+  await stmtDeleteLog.run(studentId, logDate);
   // Insert fresh log header
-  const result = stmtInsertLog.run(studentId, logDate);
+  const result = await stmtInsertLog.run(studentId, logDate);
   const logId = result.lastInsertRowid as number;
-  // Insert each page
+  // Insert each page. Sequential on purpose: they share one transaction, and
+  // issuing them in parallel against it would interleave on a single
+  // connection rather than go faster.
   for (const p of pages) {
-    stmtInsertPage.run(logId, p.page_number, p.status);
+    await stmtInsertPage.run(logId, p.page_number, p.status);
   }
   return logId;
 });
 
 // ── GET /log/preview — preview pages that would be logged for a date ────────
-router.get('/log/preview', authenticate, (req: AuthRequest, res: Response): void => {
+router.get('/log/preview', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   if (user.role !== 'student') {
     res.status(403).json({ error: 'Students only' }); return;
@@ -144,8 +146,8 @@ router.get('/log/preview', authenticate, (req: AuthRequest, res: Response): void
     res.status(400).json({ error: 'date query param must be YYYY-MM-DD' }); return;
   }
 
-  sweepRetest(user.id);
-  const pages = stmtGetWeeklyPages.all(user.id, date, date) as PageRow[];
+  await sweepRetest(user.id);
+  const pages = await stmtGetWeeklyPages.all(user.id, date, date) as PageRow[];
 
   const colorCounts = { BLACK: 0, RED: 0, AMBER: 0, GREEN: 0, GOLD: 0, YELLOW: 0 };
   for (const p of pages) colorCounts[p.status as keyof typeof colorCounts]++;
@@ -154,7 +156,7 @@ router.get('/log/preview', authenticate, (req: AuthRequest, res: Response): void
 });
 
 // ── POST /log ───────────────────────────────────────────────────────────────
-router.post('/log', authenticate, (req: AuthRequest, res: Response): void => {
+router.post('/log', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   if (user.role !== 'student') {
     res.status(403).json({ error: 'Students only' }); return;
@@ -182,11 +184,11 @@ router.post('/log', authenticate, (req: AuthRequest, res: Response): void => {
   }
 
   // Read only pages the student changed in the 7-day window for this log date
-  sweepRetest(user.id);
-  const pages = stmtGetWeeklyPages.all(user.id, logDate, logDate) as PageRow[];
+  await sweepRetest(user.id);
+  const pages = await stmtGetWeeklyPages.all(user.id, logDate, logDate) as PageRow[];
 
   // Save the snapshot (deletes old log for same date, inserts fresh)
-  const logId = saveSnapshot(user.id, logDate, pages);
+  const logId = await saveSnapshot(user.id, logDate, pages);
 
   res.status(201).json({
     id: logId,
@@ -196,8 +198,8 @@ router.post('/log', authenticate, (req: AuthRequest, res: Response): void => {
 });
 
 // ── GET /logs — own list ────────────────────────────────────────────────────
-router.get('/logs', authenticate, (req: AuthRequest, res: Response): void => {
-  const rows = db.prepare(`
+router.get('/logs', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  const rows = await db.prepare(`
     SELECT nl.id, nl.log_date, nl.created_at,
       COUNT(nlp.id)                                           AS page_count,
       SUM(CASE WHEN nlp.status='BLACK'  THEN 1 ELSE 0 END)  AS cnt_black,
@@ -217,23 +219,23 @@ router.get('/logs', authenticate, (req: AuthRequest, res: Response): void => {
 });
 
 // ── GET /logs/:logId — own detail ───────────────────────────────────────────
-router.get('/logs/:logId', authenticate, (req: AuthRequest, res: Response): void => {
+router.get('/logs/:logId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const logId = parseInt(req.params.logId, 10);
-  const log = stmtGetStudentLogById.get(logId, req.user!.id) as LogRow | undefined;
+  const log = await stmtGetStudentLogById.get(logId, req.user!.id) as LogRow | undefined;
   if (!log) { res.status(404).json({ error: 'Log not found' }); return; }
 
-  const pages = stmtGetLogPages.all(logId) as PageRow[];
+  const pages = await stmtGetLogPages.all(logId) as PageRow[];
   res.json(formatLogDetail(log, pages));
 });
 
 // ── GET /logs/student/:studentId — ustadh: list ─────────────────────────────
-router.get('/logs/student/:studentId', authenticate, (req: AuthRequest, res: Response): void => {
+router.get('/logs/student/:studentId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   if (user.role !== 'ustadh') { res.status(403).json({ error: 'Ustadh only' }); return; }
   const studentId = parseInt(req.params.studentId, 10);
-  if (!ustadhTeaches(user.id, studentId)) { res.status(403).json({ error: 'Not your student' }); return; }
+  if (!await ustadhTeaches(user.id, studentId)) { res.status(403).json({ error: 'Not your student' }); return; }
 
-  const rows = db.prepare(`
+  const rows = await db.prepare(`
     SELECT nl.id, nl.log_date, nl.created_at,
       COUNT(nlp.id)                                           AS page_count,
       SUM(CASE WHEN nlp.status='BLACK'  THEN 1 ELSE 0 END)  AS cnt_black,
@@ -253,18 +255,18 @@ router.get('/logs/student/:studentId', authenticate, (req: AuthRequest, res: Res
 });
 
 // ── GET /logs/:logId/student/:studentId — ustadh: detail ───────────────────
-router.get('/logs/:logId/student/:studentId', authenticate, (req: AuthRequest, res: Response): void => {
+router.get('/logs/:logId/student/:studentId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   if (user.role !== 'ustadh') { res.status(403).json({ error: 'Ustadh only' }); return; }
   const logId = parseInt(req.params.logId, 10);
   const studentId = parseInt(req.params.studentId, 10);
-  if (!ustadhTeaches(user.id, studentId)) { res.status(403).json({ error: 'Not your student' }); return; }
+  if (!await ustadhTeaches(user.id, studentId)) { res.status(403).json({ error: 'Not your student' }); return; }
 
-  const log = db.prepare('SELECT * FROM nazirah_logs WHERE id = ? AND student_id = ?')
+  const log = await db.prepare('SELECT * FROM nazirah_logs WHERE id = ? AND student_id = ?')
     .get(logId, studentId) as LogRow | undefined;
   if (!log) { res.status(404).json({ error: 'Log not found' }); return; }
 
-  const pages = stmtGetLogPages.all(logId) as PageRow[];
+  const pages = await stmtGetLogPages.all(logId) as PageRow[];
   res.json(formatLogDetail(log, pages));
 });
 

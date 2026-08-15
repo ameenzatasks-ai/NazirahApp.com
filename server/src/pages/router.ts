@@ -10,8 +10,8 @@ const pageSchema = z.object({
 });
 
 // GET /api/pages — page numbers this student has listened to
-router.get('/', authenticate, requireRole('student'), (req: AuthRequest, res: Response): void => {
-  const rows = db
+router.get('/', authenticate, requireRole('student'), async (req: AuthRequest, res: Response): Promise<void> => {
+  const rows = await db
     .prepare('SELECT page_number, last_read_at FROM page_reads WHERE student_id = ? AND read_count >= 1 ORDER BY page_number ASC')
     .all(req.user!.id) as Array<{ page_number: number; last_read_at: string }>;
 

@@ -14,8 +14,8 @@ import { authenticate, requireRole, AuthRequest } from '../auth/middleware';
 const router = Router();
 
 /* ── Helpers ─────────────────────────────────────────────────── */
-function ustadhTeaches(ustadhId: number, studentId: number): boolean {
-  return !!db
+async function ustadhTeaches(ustadhId: number, studentId: number): Promise<boolean> {
+  return !!await db
     .prepare(
       `SELECT 1 FROM enrolments e
        JOIN classes c ON c.id = e.class_id
@@ -176,21 +176,21 @@ const stmtAllHistory = db.prepare(`
    ?classId=N → return tasks scoped to one class
    (no param) → return only null-class tasks (legacy / standalone)
 ──────────────────────────────────────────────────────────────────*/
-router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
+router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   let rows: any[];
   if (req.query.all === 'true') {
-    rows = stmtAllHistory.all(req.user!.id) as any[];
+    rows = await stmtAllHistory.all(req.user!.id) as any[];
   } else {
     const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : null;
-    rows = stmtOwnHistory.all(req.user!.id, classId, classId) as any[];
+    rows = await stmtOwnHistory.all(req.user!.id, classId, classId) as any[];
   }
   res.json({ tasks: rows.map(formatTask) });
 });
 
 /* ── Tasks for a specific date ──────────────────────────────────*/
-router.get('/date/:date', authenticate, (req: AuthRequest, res: Response): void => {
+router.get('/date/:date', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : null;
-  const rows = stmtByDate.all(req.user!.id, req.params.date, classId, classId) as any[];
+  const rows = await stmtByDate.all(req.user!.id, req.params.date, classId, classId) as any[];
   res.json({ tasks: rows.map(formatTask) });
 });
 
@@ -199,14 +199,14 @@ router.get(
   '/student/:studentId',
   authenticate,
   requireRole('ustadh'),
-  (req: AuthRequest, res: Response): void => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     const studentId = parseInt(req.params.studentId, 10);
-    if (!ustadhTeaches(req.user!.id, studentId)) {
+    if (!await ustadhTeaches(req.user!.id, studentId)) {
       res.status(403).json({ error: 'Not your student' });
       return;
     }
     const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : null;
-    const rows = stmtStudentHistory.all(studentId, classId, classId) as any[];
+    const rows = await stmtStudentHistory.all(studentId, classId, classId) as any[];
     res.json({ tasks: rows.map(formatTask) });
   },
 );
@@ -236,13 +236,13 @@ const stmtAllMyScores = db.prepare(`
 /* GET own scores (student)
    ?all=true  → all classes (History tab)
    ?classId=N → single class */
-router.get('/my-scores', authenticate, (req: AuthRequest, res: Response): void => {
+router.get('/my-scores', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   let rows: any[];
   if (req.query.all === 'true') {
-    rows = stmtAllMyScores.all(req.user!.id) as any[];
+    rows = await stmtAllMyScores.all(req.user!.id) as any[];
   } else {
     const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : null;
-    rows = stmtMyScores.all(req.user!.id, classId, classId) as any[];
+    rows = await stmtMyScores.all(req.user!.id, classId, classId) as any[];
   }
   res.json({
     scores: rows.map(r => ({
@@ -290,14 +290,14 @@ router.get(
   '/student/:studentId/scores',
   authenticate,
   requireRole('ustadh'),
-  (req: AuthRequest, res: Response): void => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     const studentId = parseInt(req.params.studentId, 10);
-    if (!ustadhTeaches(req.user!.id, studentId)) {
+    if (!await ustadhTeaches(req.user!.id, studentId)) {
       res.status(403).json({ error: 'Not your student' });
       return;
     }
     const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : null;
-    const rows = stmtMyScores.all(studentId, classId, classId) as any[];
+    const rows = await stmtMyScores.all(studentId, classId, classId) as any[];
     res.json({
       scores: rows.map(r => ({
         taskDate:    r.task_date,
@@ -317,9 +317,9 @@ router.patch(
   '/student/:studentId/score',
   authenticate,
   requireRole('ustadh'),
-  (req: AuthRequest, res: Response): void => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     const studentId = parseInt(req.params.studentId, 10);
-    if (!ustadhTeaches(req.user!.id, studentId)) {
+    if (!await ustadhTeaches(req.user!.id, studentId)) {
       res.status(403).json({ error: 'Not your student' });
       return;
     }

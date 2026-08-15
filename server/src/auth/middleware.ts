@@ -18,7 +18,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-export function authenticate(req: AuthRequest, res: Response, next: NextFunction): void {
+export async function authenticate(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const token = req.cookies?.nazirah_token;
   if (!token) {
     res.status(401).json({ error: 'Not authenticated' });
@@ -33,7 +33,7 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
 
   try {
     const payload = jwt.verify(token, secret) as { id: number };
-    const user = db
+    const user = await db
       .prepare('SELECT id, google_id, name, email, username, avatar_url, role, created_at FROM users WHERE id = ?')
       .get(payload.id) as AuthRequest['user'] | undefined;
 

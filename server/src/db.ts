@@ -1,23 +1,45 @@
-import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { createSqliteClient } from './sqlite';
 
-// __dirname when compiled = server/dist/ — go up 2 to project root.
-// In production, set DATABASE_PATH env var to a persistent volume path instead.
+/**
+ * DATABASE_URL points at Turso in production (libsql://…, with an auth token).
+ * Without it we fall back to a local file, so development and the existing
+ * DATABASE_PATH setups carry on unchanged.
+ *
+ * The database has to live off the container: App Platform and Render both
+ * give you an ephemeral filesystem, so a SQLite file beside the app is erased
+ * on every deploy and restart — precisely how accounts kept disappearing.
+ */
+const IS_REMOTE = Boolean(process.env.DATABASE_URL);
 const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, '../../nazirah.db');
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-const db = new Database(DB_PATH);
+const DB_URL = process.env.DATABASE_URL ?? `file:${DB_PATH}`;
 
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+if (!IS_REMOTE) {
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+}
 
-export function runMigrations(): void {
+const db = createSqliteClient(DB_URL, process.env.DATABASE_AUTH_TOKEN);
+
+export async function runMigrations(): Promise<void> {
+  // WAL is a local-file concern; Turso manages its own storage, so asking a
+  // remote database to change journal mode is meaningless.
+  if (!IS_REMOTE) {
+    await db.pragma('journal_mode = WAL');
+  }
+  await db.pragma('foreign_keys = ON');
+
   // ── Legacy schema detection ──────────────────────────────────
   // v1 (password-auth era) → drop everything.
   try {
-    db.prepare('SELECT password FROM users LIMIT 1').get();
+    // MUST be awaited. This probe is meant to THROW on any schema that is not
+    // v1, and the catch below is what says "not v1, leave the data alone".
+    // Un-awaited, the rejection escapes the try/catch entirely, the guard
+    // inverts, and every start-up concludes it is v1 and drops every table —
+    // destroying all accounts, classes and progress on a healthy database.
+    await db.prepare('SELECT password FROM users LIMIT 1').get();
     console.log('Detected v1 schema — dropping all tables for v2 migration...');
-    db.exec(`
+    await db.exec(`
       DROP TABLE IF EXISTS announcements;
       DROP TABLE IF EXISTS page_reads;
       DROP TABLE IF EXISTS enrolments;
@@ -29,7 +51,7 @@ export function runMigrations(): void {
   }
 
   // ── Core schema (idempotent) ─────────────────────────────────
-  db.exec(`
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       google_id     TEXT    UNIQUE,
@@ -147,7 +169,7 @@ export function runMigrations(): void {
   `);
 
   // ── Hifz module tables ────────────────────────────────────────────────────
-  db.exec(`
+  await db.exec(`
     -- Student daily task submissions (Sabaq, Sabaq Para, Dawr)
     CREATE TABLE IF NOT EXISTS hifz_daily_tasks (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -219,15 +241,15 @@ export function runMigrations(): void {
   // Add class_id to hifz tables if not present, and recreate tables with
   // updated UNIQUE constraints so data is isolated per class.
   interface ColInfo { name: string; notnull: number }
-  const hdtCols = db.prepare("PRAGMA table_info(hifz_daily_tasks)").all() as ColInfo[];
+  const hdtCols = await db.prepare("PRAGMA table_info(hifz_daily_tasks)").all() as ColInfo[];
   if (hdtCols.length > 0 && !hdtCols.some(c => c.name === 'class_id')) {
     console.log('Migrating Hifz tables to include class_id...');
 
     // 1. hifz_daily_tasks — just add column (no unique constraint affected)
-    db.exec(`ALTER TABLE hifz_daily_tasks ADD COLUMN class_id INTEGER REFERENCES classes(id)`);
+    await db.exec(`ALTER TABLE hifz_daily_tasks ADD COLUMN class_id INTEGER REFERENCES classes(id)`);
 
     // 2. hifz_dawr_log — recreate with new UNIQUE(student_id, class_id, juz_number, quarter)
-    db.exec(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS hifz_dawr_log_v2 (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id  INTEGER NOT NULL REFERENCES users(id),
@@ -243,7 +265,7 @@ export function runMigrations(): void {
         UNIQUE(student_id, class_id, juz_number, quarter)
       )
     `);
-    db.exec(`
+    await db.exec(`
       INSERT OR IGNORE INTO hifz_dawr_log_v2
         (id, student_id, class_id, juz_number, quarter, logged_date,
          score, score_label, comment, scored_by, scored_at)
@@ -251,11 +273,11 @@ export function runMigrations(): void {
              score, score_label, comment, scored_by, scored_at
       FROM hifz_dawr_log
     `);
-    db.exec('DROP TABLE hifz_dawr_log');
-    db.exec('ALTER TABLE hifz_dawr_log_v2 RENAME TO hifz_dawr_log');
+    await db.exec('DROP TABLE hifz_dawr_log');
+    await db.exec('ALTER TABLE hifz_dawr_log_v2 RENAME TO hifz_dawr_log');
 
     // 3. hifz_task_scores — recreate with UNIQUE(student_id, class_id, task_date)
-    db.exec(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS hifz_task_scores_v2 (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id   INTEGER NOT NULL REFERENCES users(id),
@@ -271,7 +293,7 @@ export function runMigrations(): void {
         UNIQUE(student_id, class_id, task_date)
       )
     `);
-    db.exec(`
+    await db.exec(`
       INSERT OR IGNORE INTO hifz_task_scores_v2
         (id, student_id, class_id, task_date, sp_score, sabaq_score,
          tajwid_score, adab_score, comment, scored_by, scored_at)
@@ -279,11 +301,11 @@ export function runMigrations(): void {
              tajwid_score, adab_score, comment, scored_by, scored_at
       FROM hifz_task_scores
     `);
-    db.exec('DROP TABLE hifz_task_scores');
-    db.exec('ALTER TABLE hifz_task_scores_v2 RENAME TO hifz_task_scores');
+    await db.exec('DROP TABLE hifz_task_scores');
+    await db.exec('ALTER TABLE hifz_task_scores_v2 RENAME TO hifz_task_scores');
 
     // Recreate indexes
-    db.exec(`
+    await db.exec(`
       CREATE INDEX IF NOT EXISTS idx_hdt_class ON hifz_daily_tasks(student_id, class_id, task_date DESC);
       CREATE INDEX IF NOT EXISTS idx_hdl_class ON hifz_dawr_log(student_id, class_id);
       CREATE INDEX IF NOT EXISTS idx_hts_class ON hifz_task_scores(student_id, class_id, task_date DESC);
@@ -292,7 +314,7 @@ export function runMigrations(): void {
   }
 
   // After migration, ensure class_id indexes exist (safe for fresh DBs too)
-  db.exec(`
+  await db.exec(`
     CREATE INDEX IF NOT EXISTS idx_hdt_class ON hifz_daily_tasks(student_id, class_id, task_date DESC);
     CREATE INDEX IF NOT EXISTS idx_hdl_class ON hifz_dawr_log(student_id, class_id);
     CREATE INDEX IF NOT EXISTS idx_hts_class ON hifz_task_scores(student_id, class_id, task_date DESC);
@@ -301,12 +323,12 @@ export function runMigrations(): void {
   // ── Dawr cycles migration ───────────────────────────────────────────────────
   // Old: UNIQUE(student_id, class_id, juz_number, quarter) — one row per juz/quarter
   // New: UNIQUE(student_id, class_id, juz_number, quarter, logged_date) — one row per cycle
-  const noClassIdxCols = db
+  const noClassIdxCols = await db
     .prepare('PRAGMA index_info(uidx_hdl_noclass)')
     .all() as Array<{ name: string }>;
   if (!noClassIdxCols.some(c => c.name === 'logged_date')) {
     console.log('Migrating hifz_dawr_log to support dawr cycles...');
-    db.exec(`
+    await db.exec(`
       CREATE TABLE hifz_dawr_log_cyc (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id  INTEGER NOT NULL REFERENCES users(id),
@@ -322,7 +344,7 @@ export function runMigrations(): void {
         UNIQUE(student_id, class_id, juz_number, quarter, logged_date)
       )
     `);
-    db.exec(`
+    await db.exec(`
       INSERT OR IGNORE INTO hifz_dawr_log_cyc
         (id, student_id, class_id, juz_number, quarter, logged_date,
          score, score_label, comment, scored_by, scored_at)
@@ -331,12 +353,12 @@ export function runMigrations(): void {
              score, score_label, comment, scored_by, scored_at
       FROM hifz_dawr_log
     `);
-    db.exec('DROP INDEX IF EXISTS uidx_hdl_noclass');
-    db.exec('DROP INDEX IF EXISTS idx_hdl_student');
-    db.exec('DROP INDEX IF EXISTS idx_hdl_class');
-    db.exec('DROP TABLE hifz_dawr_log');
-    db.exec('ALTER TABLE hifz_dawr_log_cyc RENAME TO hifz_dawr_log');
-    db.exec(`
+    await db.exec('DROP INDEX IF EXISTS uidx_hdl_noclass');
+    await db.exec('DROP INDEX IF EXISTS idx_hdl_student');
+    await db.exec('DROP INDEX IF EXISTS idx_hdl_class');
+    await db.exec('DROP TABLE hifz_dawr_log');
+    await db.exec('ALTER TABLE hifz_dawr_log_cyc RENAME TO hifz_dawr_log');
+    await db.exec(`
       CREATE UNIQUE INDEX uidx_hdl_noclass
         ON hifz_dawr_log(student_id, juz_number, quarter, logged_date)
         WHERE class_id IS NULL;
@@ -348,19 +370,19 @@ export function runMigrations(): void {
 
   // ── Sabaq lines migration ───────────────────────────────────────────────────
   // Add sabaq_lines column to hifz_daily_tasks if not present.
-  const hdtColsNow = db.prepare('PRAGMA table_info(hifz_daily_tasks)').all() as Array<{ name: string }>;
+  const hdtColsNow = await db.prepare('PRAGMA table_info(hifz_daily_tasks)').all() as Array<{ name: string }>;
   if (!hdtColsNow.some(c => c.name === 'sabaq_lines')) {
-    db.exec('ALTER TABLE hifz_daily_tasks ADD COLUMN sabaq_lines INTEGER');
+    await db.exec('ALTER TABLE hifz_daily_tasks ADD COLUMN sabaq_lines INTEGER');
     console.log('Added sabaq_lines column to hifz_daily_tasks.');
   }
 
   // ── Username/password auth migration ──────────────────────────────────────
   // Add username + password_hash columns and make google_id/email nullable.
-  const userCols = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string; notnull: number }>;
+  const userCols = await db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string; notnull: number }>;
   if (userCols.length > 0 && !userCols.some(c => c.name === 'username')) {
     console.log('Migrating users table to support username/password auth...');
-    db.pragma('foreign_keys = OFF');
-    db.exec(`
+    await db.pragma('foreign_keys = OFF');
+    await db.exec(`
       CREATE TABLE users_v4 (
         id            INTEGER PRIMARY KEY AUTOINCREMENT,
         google_id     TEXT    UNIQUE,
@@ -377,7 +399,7 @@ export function runMigrations(): void {
       DROP TABLE users;
       ALTER TABLE users_v4 RENAME TO users;
     `);
-    db.pragma('foreign_keys = ON');
+    await db.pragma('foreign_keys = ON');
     console.log('Users table migration complete.');
   }
 
@@ -394,13 +416,13 @@ export function runMigrations(): void {
   // and repair manually.  The fix: recreate the table with the correct schema,
   // copying all surviving columns.
   //
-  const histCols = db.prepare("PRAGMA table_info(status_history)").all() as ColInfo[];
+  const histCols = await db.prepare("PRAGMA table_info(status_history)").all() as ColInfo[];
   const hasQuarterIndex = histCols.some(c => c.name === 'quarter_index');
   const toStatusNotNull  = histCols.some(c => c.name === 'to_status' && c.notnull === 1);
 
   if (hasQuarterIndex || toStatusNotNull) {
     console.log('Repairing status_history schema (stale constraints detected)...');
-    db.exec(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS status_history_v3 (
         id             INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id     INTEGER NOT NULL REFERENCES users(id),
@@ -413,21 +435,31 @@ export function runMigrations(): void {
         note           TEXT
       )
     `);
-    db.exec(`
+    await db.exec(`
       INSERT OR IGNORE INTO status_history_v3
         (id, student_id, variant, page_number, from_status, to_status, changed_at, changed_by, note)
       SELECT id, student_id, variant, page_number, from_status, to_status, changed_at, changed_by, note
       FROM status_history
     `);
-    db.exec('DROP TABLE status_history');
-    db.exec('ALTER TABLE status_history_v3 RENAME TO status_history');
-    db.exec('CREATE INDEX IF NOT EXISTS idx_history_student_time ON status_history(student_id, changed_at DESC)');
+    await db.exec('DROP TABLE status_history');
+    await db.exec('ALTER TABLE status_history_v3 RENAME TO status_history');
+    await db.exec('CREATE INDEX IF NOT EXISTS idx_history_student_time ON status_history(student_id, changed_at DESC)');
     console.log('status_history repair complete.');
   }
 }
 
-// Run migrations immediately so all tables exist before any router module
-// imports db and compiles module-level prepared statements.
-runMigrations();
+// Migrations are NOT run here any more. They used to be, because better-sqlite3
+// compiled a prepared statement against the live schema the moment a router
+// module was imported, so the tables had to exist by then — and being
+// synchronous, calling it here guaranteed that.
+//
+// Neither half of that holds now. prepare() only stores the SQL and does not
+// touch the database until the statement is executed, so module-level
+// statements no longer need the schema to exist at import time. And the call is
+// async: left here it would return a floating promise that runs CONCURRENTLY
+// with the awaited call in index.ts — two migration runs racing on one
+// database, which is exactly what a schema migration must never do.
+//
+// index.ts awaits runMigrations() before it starts listening.
 
 export default db;

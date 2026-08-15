@@ -49,17 +49,17 @@ export function configurePassport(): void {
             .get(profile.id) as any;
 
           if (!user) {
-            const result = db
+            const result = await db
               .prepare(
                 'INSERT INTO users (google_id, name, email, avatar_url) VALUES (?, ?, ?, ?)'
               )
               .run(profile.id, profile.displayName, email, avatarUrl);
-            user = db
+            user = await db
               .prepare('SELECT * FROM users WHERE id = ?')
               .get(result.lastInsertRowid);
           } else {
             if (user.avatar_url !== avatarUrl) {
-              db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatarUrl, user.id);
+              await db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatarUrl, user.id);
               user.avatar_url = avatarUrl;
             }
           }
@@ -73,9 +73,15 @@ export function configurePassport(): void {
   );
 
   passport.serializeUser((user: any, done) => done(null, user.id));
-  passport.deserializeUser((id: number, done) => {
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as Express.User | undefined;
-    done(null, user ?? false);
+  passport.deserializeUser(async (id: number, done) => {
+    try {
+      const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(id) as Express.User | undefined;
+      done(null, user ?? false);
+    } catch (err) {
+      // The lookup can now fail on the network, which it never could against a
+      // local file — report it rather than silently deserialising nobody.
+      done(err as Error);
+    }
   });
 }
 

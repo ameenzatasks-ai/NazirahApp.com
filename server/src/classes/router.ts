@@ -18,28 +18,28 @@ function generateJoinCode(): string {
 const router = Router();
 
 // POST /api/classes — Ustadh creates a class
-router.post('/', authenticate, requireRole('ustadh'), (req: AuthRequest, res: Response): void => {
+router.post('/', authenticate, requireRole('ustadh'), async (req: AuthRequest, res: Response): Promise<void> => {
   const parsed = z.object({ name: z.string().min(1).max(200) }).safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.errors[0].message });
     return;
   }
   const joinCode = generateJoinCode();
-  const result = db
+  const result = await db
     .prepare('INSERT INTO classes (name, ustadh_id, join_code) VALUES (?, ?, ?)')
     .run(parsed.data.name, req.user!.id, joinCode);
-  const cls = db.prepare('SELECT * FROM classes WHERE id = ?').get(result.lastInsertRowid);
+  const cls = await db.prepare('SELECT * FROM classes WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(cls);
 });
 
 // GET /api/classes — list my classes
 // Ustadh sees: classes they own + classes they've enrolled in (as learner).
 // Student sees: classes they're enrolled in.
-router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
+router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   if (user.role === 'ustadh') {
     // Own classes (is_owner = 1)
-    const owned = db.prepare(`
+    const owned = await db.prepare(`
       SELECT c.id, c.name, c.ustadh_id, c.join_code, c.created_at,
              COUNT(e.id) AS student_count,
              NULL         AS ustadh_name,
@@ -52,7 +52,7 @@ router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
     `).all(user.id);
 
     // Enrolled classes (is_owner = 0) — Ustadh joined as a learner
-    const enrolled = db.prepare(`
+    const enrolled = await db.prepare(`
       SELECT c.id, c.name, c.ustadh_id, c.join_code, c.created_at,
              0            AS student_count,
              u.name       AS ustadh_name,
@@ -71,7 +71,7 @@ router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
     );
     res.json(all);
   } else {
-    const classes = db.prepare(`
+    const classes = await db.prepare(`
       SELECT c.*, u.name as ustadh_name, u.avatar_url as ustadh_avatar, e.joined_at
       FROM enrolments e
       JOIN classes c ON c.id = e.class_id
@@ -149,28 +149,28 @@ router.delete('/:id', authenticate, requireRole('ustadh'), (req: AuthRequest, re
 });
 
 // POST /api/classes/join — Any authenticated user joins a class by code
-router.post('/join', authenticate, (req: AuthRequest, res: Response): void => {
+router.post('/join', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const parsed = z.object({ joinCode: z.string().min(1) }).safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: 'joinCode required' }); return; }
 
   const code = parsed.data.joinCode.toUpperCase();
-  const cls = db.prepare('SELECT * FROM classes WHERE join_code = ?').get(code) as any;
+  const cls = await db.prepare('SELECT * FROM classes WHERE join_code = ?').get(code) as any;
   if (!cls) { res.status(404).json({ error: 'Class not found. Check the join code.' }); return; }
 
-  const existing = db
+  const existing = await db
     .prepare('SELECT id FROM enrolments WHERE class_id = ? AND student_id = ?')
     .get(cls.id, req.user!.id);
   if (existing) { res.status(409).json({ error: 'Already enrolled in this class' }); return; }
 
-  db.prepare('INSERT INTO enrolments (class_id, student_id) VALUES (?, ?)').run(cls.id, req.user!.id);
-  const ustadh = db.prepare('SELECT name, avatar_url FROM users WHERE id = ?').get(cls.ustadh_id) as any;
+  await db.prepare('INSERT INTO enrolments (class_id, student_id) VALUES (?, ?)').run(cls.id, req.user!.id);
+  const ustadh = await db.prepare('SELECT name, avatar_url FROM users WHERE id = ?').get(cls.ustadh_id) as any;
   res.status(201).json({ ...cls, ustadh_name: ustadh?.name, ustadh_avatar: ustadh?.avatar_url });
 });
 
 // DELETE /api/classes/:id/leave — Student leaves a class
-router.delete('/:id/leave', authenticate, requireRole('student'), (req: AuthRequest, res: Response): void => {
+router.delete('/:id/leave', authenticate, requireRole('student'), async (req: AuthRequest, res: Response): Promise<void> => {
   const classId = parseInt(req.params.id, 10);
-  const result = db
+  const result = await db
     .prepare('DELETE FROM enrolments WHERE class_id = ? AND student_id = ?')
     .run(classId, req.user!.id);
   if (result.changes === 0) { res.status(404).json({ error: 'Enrolment not found' }); return; }
@@ -178,12 +178,12 @@ router.delete('/:id/leave', authenticate, requireRole('student'), (req: AuthRequ
 });
 
 // GET /api/classes/:id/students — student list with latest snapshot (Ustadh only)
-router.get('/:id/students', authenticate, requireRole('ustadh'), (req: AuthRequest, res: Response): void => {
+router.get('/:id/students', authenticate, requireRole('ustadh'), async (req: AuthRequest, res: Response): Promise<void> => {
   const classId = parseInt(req.params.id, 10);
-  const cls = db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
+  const cls = await db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
   if (!cls) { res.status(404).json({ error: 'Class not found' }); return; }
 
-  const students = db
+  const students = await db
     .prepare(`
       SELECT u.id, u.name, u.email, u.avatar_url, e.joined_at
       FROM enrolments e
@@ -204,18 +204,18 @@ router.get('/:id/students', authenticate, requireRole('ustadh'), (req: AuthReque
 });
 
 // GET /api/classes/:id/students/:studentId/pages
-router.get('/:id/students/:studentId/pages', authenticate, requireRole('ustadh'), (req: AuthRequest, res: Response): void => {
+router.get('/:id/students/:studentId/pages', authenticate, requireRole('ustadh'), async (req: AuthRequest, res: Response): Promise<void> => {
   const classId = parseInt(req.params.id, 10);
   const studentId = parseInt(req.params.studentId, 10);
 
-  const cls = db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
+  const cls = await db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
   if (!cls) { res.status(404).json({ error: 'Class not found' }); return; }
 
-  const enrolment = db.prepare('SELECT id FROM enrolments WHERE class_id = ? AND student_id = ?').get(classId, studentId);
+  const enrolment = await db.prepare('SELECT id FROM enrolments WHERE class_id = ? AND student_id = ?').get(classId, studentId);
   if (!enrolment) { res.status(404).json({ error: 'Student not enrolled' }); return; }
 
-  const student = db.prepare('SELECT id, name, email, avatar_url FROM users WHERE id = ?').get(studentId) as any;
-  const rows = db
+  const student = await db.prepare('SELECT id, name, email, avatar_url FROM users WHERE id = ?').get(studentId) as any;
+  const rows = await db
     .prepare('SELECT page_number, last_read_at FROM page_reads WHERE student_id = ? AND read_count >= 1 ORDER BY page_number ASC')
     .all(studentId) as Array<{ page_number: number; last_read_at: string }>;
 
@@ -227,9 +227,9 @@ router.get('/:id/students/:studentId/pages', authenticate, requireRole('ustadh')
 });
 
 /** Build a 7-color count of pages for one student (out of 604 total). */
-function buildStudentCounts(studentId: number) {
-  sweepRetest(studentId);
-  const rows = db.prepare(`
+async function buildStudentCounts(studentId: number) {
+  await sweepRetest(studentId);
+  const rows = await db.prepare(`
     SELECT status, COUNT(*) AS c
     FROM student_page_status
     WHERE student_id = ? AND variant = 'NEW_MADANI'
@@ -245,27 +245,27 @@ function buildStudentCounts(studentId: number) {
 }
 
 // GET /api/classes/:id/students/:studentId/summary — Ustadh dashboard tile
-router.get('/:id/students/:studentId/summary', authenticate, requireRole('ustadh'), (req: AuthRequest, res: Response): void => {
+router.get('/:id/students/:studentId/summary', authenticate, requireRole('ustadh'), async (req: AuthRequest, res: Response): Promise<void> => {
   const classId = parseInt(req.params.id, 10);
   const studentId = parseInt(req.params.studentId, 10);
 
-  const cls = db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
+  const cls = await db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
   if (!cls) { res.status(404).json({ error: 'Class not found' }); return; }
 
-  const enrolment = db.prepare('SELECT id FROM enrolments WHERE class_id = ? AND student_id = ?').get(classId, studentId);
+  const enrolment = await db.prepare('SELECT id FROM enrolments WHERE class_id = ? AND student_id = ?').get(classId, studentId);
   if (!enrolment) { res.status(404).json({ error: 'Student not enrolled' }); return; }
 
-  const student = db.prepare('SELECT id, name, email, avatar_url FROM users WHERE id = ?').get(studentId);
-  res.json({ student, counts: buildStudentCounts(studentId) });
+  const student = await db.prepare('SELECT id, name, email, avatar_url FROM users WHERE id = ?').get(studentId);
+  res.json({ student, counts: await buildStudentCounts(studentId) });
 });
 
 // GET /api/classes/:id/students-with-summary — Ustadh roster + counts per student
-router.get('/:id/students-with-summary', authenticate, requireRole('ustadh'), (req: AuthRequest, res: Response): void => {
+router.get('/:id/students-with-summary', authenticate, requireRole('ustadh'), async (req: AuthRequest, res: Response): Promise<void> => {
   const classId = parseInt(req.params.id, 10);
-  const cls = db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
+  const cls = await db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
   if (!cls) { res.status(404).json({ error: 'Class not found' }); return; }
 
-  const students = db.prepare(`
+  const students = await db.prepare(`
     SELECT u.id, u.name, u.email, u.avatar_url, e.joined_at
     FROM enrolments e
     JOIN users u ON u.id = e.student_id
@@ -273,7 +273,11 @@ router.get('/:id/students-with-summary', authenticate, requireRole('ustadh'), (r
     ORDER BY u.name ASC
   `).all(classId) as Array<{ id: number; name: string; email: string; avatar_url: string | null; joined_at: string }>;
 
-  res.json(students.map(s => ({ ...s, counts: buildStudentCounts(s.id) })));
+  // Counted in parallel: one round trip per student in sequence would be slow
+  // against a remote database once a class has any size to it.
+  res.json(await Promise.all(
+    students.map(async s => ({ ...s, counts: await buildStudentCounts(s.id) })),
+  ));
 });
 
 export default router;

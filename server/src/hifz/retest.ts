@@ -45,12 +45,12 @@ const stmtHistory = db.prepare(`
 
 const NOTE = `Automatic — ${RETEST_AFTER_DAYS} days since Test 2 completed`;
 
-const sweepTx = db.transaction((studentId: number, pages: number[]) => {
+const sweepTx = db.transaction(async (studentId: number, pages: number[]) => {
   for (const page of pages) {
-    stmtFlip.run(studentId, page);
+    await stmtFlip.run(studentId, page);
     // changed_by is NOT NULL, and there is no system account, so the change is
     // attributed to the student whose page it is.
-    stmtHistory.run(studentId, page, studentId, NOTE);
+    await stmtHistory.run(studentId, page, studentId, NOTE);
   }
 });
 
@@ -61,9 +61,9 @@ const sweepTx = db.transaction((studentId: number, pages: number[]) => {
  *
  * @returns how many pages were flipped.
  */
-export function sweepRetest(studentId: number): number {
-  const due = stmtDue.all(studentId, RETEST_AFTER_DAYS) as Array<{ page_number: number }>;
+export async function sweepRetest(studentId: number): Promise<number> {
+  const due = await stmtDue.all(studentId, RETEST_AFTER_DAYS) as Array<{ page_number: number }>;
   if (due.length === 0) return 0;
-  sweepTx(studentId, due.map(r => r.page_number));
+  await sweepTx(studentId, due.map(r => r.page_number));
   return due.length;
 }

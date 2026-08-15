@@ -45,8 +45,8 @@ export const SCORE_COLOURS: Record<number, string> = {
 };
 
 /* ── Helpers ─────────────────────────────────────────────────── */
-function ustadhTeaches(ustadhId: number, studentId: number): boolean {
-  return !!db
+async function ustadhTeaches(ustadhId: number, studentId: number): Promise<boolean> {
+  return !!await db
     .prepare(
       `SELECT 1 FROM enrolments e
        JOIN classes c ON c.id = e.class_id
@@ -64,14 +64,14 @@ interface DawrCycleRow {
   scoredAt:    string | null;
 }
 
-function buildGrid(studentId: number, classId?: number | null) {
+async function buildGrid(studentId: number, classId?: number | null) {
   const rows = classId != null
-    ? db.prepare(
+    ? await db.prepare(
         `SELECT juz_number, quarter, logged_date, score, score_label, comment, scored_at
          FROM hifz_dawr_log WHERE student_id = ? AND class_id = ?
          ORDER BY juz_number ASC, quarter ASC, logged_date ASC`,
       ).all(studentId, classId) as any[]
-    : db.prepare(
+    : await db.prepare(
         `SELECT juz_number, quarter, logged_date, score, score_label, comment, scored_at
          FROM hifz_dawr_log WHERE student_id = ? AND class_id IS NULL
          ORDER BY juz_number ASC, quarter ASC, logged_date ASC`,
@@ -117,10 +117,10 @@ function buildGrid(studentId: number, classId?: number | null) {
 /* ── Routes ──────────────────────────────────────────────────── */
 
 /* Own grid */
-router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
+router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : null;
   res.json({
-    grid:        buildGrid(req.user!.id, classId),
+    grid:        await buildGrid(req.user!.id, classId),
     scoreLabels: SCORE_LABELS,
     scoreColours: SCORE_COLOURS,
   });
@@ -131,15 +131,15 @@ router.get(
   '/student/:studentId',
   authenticate,
   requireRole('ustadh'),
-  (req: AuthRequest, res: Response): void => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     const studentId = parseInt(req.params.studentId, 10);
-    if (!ustadhTeaches(req.user!.id, studentId)) {
+    if (!await ustadhTeaches(req.user!.id, studentId)) {
       res.status(403).json({ error: 'Not your student' });
       return;
     }
     const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : null;
     res.json({
-      grid:        buildGrid(studentId, classId),
+      grid:        await buildGrid(studentId, classId),
       scoreLabels: SCORE_LABELS,
       scoreColours: SCORE_COLOURS,
     });
@@ -154,7 +154,7 @@ router.patch(
   '/:juz',
   authenticate,
   requireRole('ustadh'),
-  (req: AuthRequest, res: Response): void => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     const juz     = parseInt(req.params.juz, 10);
 
     if (isNaN(juz) || juz < 1 || juz > 30) {
@@ -177,7 +177,7 @@ router.patch(
     }
     const { quarter: resolvedQuarter, studentId, classId, loggedDate, score, comment } = parsed.data;
 
-    if (!ustadhTeaches(req.user!.id, studentId)) {
+    if (!await ustadhTeaches(req.user!.id, studentId)) {
       res.status(403).json({ error: 'Not your student' });
       return;
     }
@@ -219,13 +219,13 @@ router.get(
   '/all-students',
   authenticate,
   requireRole('ustadh'),
-  (req: AuthRequest, res: Response): void => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     const ustadhId = req.user!.id;
     const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : null;
 
     // Get all students enrolled in the specified class (or any class taught by this ustadh)
     const students = classId
-      ? db.prepare(
+      ? await db.prepare(
           `SELECT DISTINCT u.id, u.name, u.avatar_url
            FROM users u
            JOIN enrolments e ON e.student_id = u.id
@@ -233,7 +233,7 @@ router.get(
            WHERE c.ustadh_id = ? AND c.id = ?
            ORDER BY u.name`,
         ).all(ustadhId, classId) as Array<{ id: number; name: string; avatar_url: string | null }>
-      : db.prepare(
+      : await db.prepare(
           `SELECT DISTINCT u.id, u.name, u.avatar_url
            FROM users u
            JOIN enrolments e ON e.student_id = u.id
@@ -242,12 +242,15 @@ router.get(
            ORDER BY u.name`,
         ).all(ustadhId) as Array<{ id: number; name: string; avatar_url: string | null }>;
 
-    const result = students.map(s => ({
+    // Promise.all rather than a sequential loop: these are independent reads,
+    // and against a remote database the round trips would otherwise add up
+    // across a whole class.
+    const result = await Promise.all(students.map(async s => ({
       id:        s.id,
       name:      s.name,
       avatarUrl: s.avatar_url,
-      grid:      buildGrid(s.id, classId),
-    }));
+      grid:      await buildGrid(s.id, classId),
+    })));
 
     res.json({
       students:     result,
