@@ -7,12 +7,28 @@ import { sweepRetest } from '../hifz/retest';
 
 const nanoid = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 6);
 
-function generateJoinCode(): string {
-  let code = nanoid();
-  while (db.prepare('SELECT id FROM classes WHERE join_code = ?').get(code)) {
-    code = nanoid();
+/**
+ * A join code no existing class already holds.
+ *
+ * The await in the loop condition is load-bearing. Without it the condition is
+ * a Promise, a Promise is always truthy, and the loop never ends — it spun for
+ * ten minutes generating codes until the heap reached 4 GB and Node aborted.
+ * A truthiness test on an un-awaited call is silent in a way the compiler
+ * cannot see.
+ *
+ * The guard bounds it regardless: 32^6 codes make a collision vanishingly
+ * unlikely, so needing more than a few attempts means something is wrong with
+ * the query rather than with luck, and looping forever is never the answer.
+ */
+const MAX_JOIN_CODE_ATTEMPTS = 10;
+
+async function generateJoinCode(): Promise<string> {
+  for (let attempt = 0; attempt < MAX_JOIN_CODE_ATTEMPTS; attempt++) {
+    const code = nanoid();
+    const taken = await db.prepare('SELECT id FROM classes WHERE join_code = ?').get(code);
+    if (!taken) return code;
   }
-  return code;
+  throw new Error('Could not allocate an unused join code');
 }
 
 const router = Router();
@@ -24,7 +40,7 @@ router.post('/', authenticate, requireRole('ustadh'), async (req: AuthRequest, r
     res.status(400).json({ error: parsed.error.errors[0].message });
     return;
   }
-  const joinCode = generateJoinCode();
+  const joinCode = await generateJoinCode();
   const result = await db
     .prepare('INSERT INTO classes (name, ustadh_id, join_code) VALUES (?, ?, ?)')
     .run(parsed.data.name, req.user!.id, joinCode);

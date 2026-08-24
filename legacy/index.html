@@ -1,0 +1,3532 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>حِفْظ — Hifz App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Design Tokens ───────────────────────────────────────────────── */
+:root {
+  --c-bg:          #FAF7F0;
+  --c-bg-card:     #FFFFFF;
+  --c-bg-nav:      #FFFFFF;
+  --c-bg-subtle:   rgba(15,76,58,0.05);
+  --c-border:      rgba(15,76,58,0.10);
+  --c-border-soft: rgba(15,76,58,0.18);
+  --c-text:        #0F4C3A;
+  --c-text-muted:  rgba(15,76,58,0.60);
+  --c-text-faint:  rgba(15,76,58,0.35);
+  --c-gold:        #B8862A;
+  --c-gold-bg:     rgba(184,134,42,0.12);
+  --c-red:         #C53030;
+  --c-red-bg:      rgba(197,48,48,0.08);
+}
+html[data-theme="dark"] {
+  --c-bg:          #0d0d0d;
+  --c-bg-card:     #111111;
+  --c-bg-nav:      #111111;
+  --c-bg-subtle:   rgba(255,255,255,0.05);
+  --c-border:      rgba(255,255,255,0.06);
+  --c-border-soft: rgba(255,255,255,0.10);
+  --c-text:        #FAF7F0;
+  --c-text-muted:  rgba(250,247,240,0.45);
+  --c-text-faint:  rgba(250,247,240,0.25);
+  --c-gold:        #C49A2A;
+  --c-gold-bg:     rgba(196,154,42,0.12);
+  --c-red:         #E24B4A;
+  --c-red-bg:      rgba(226,75,74,0.08);
+}
+
+/* ── Reset ───────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overscroll-behavior:none}
+body{
+  font-family:'Inter',sans-serif;
+  background:#111;color:var(--c-text);
+  -webkit-tap-highlight-color:transparent;
+  -webkit-font-smoothing:antialiased;
+  transition:background .25s,color .25s;
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;width:100%;
+}
+button,input,select,textarea{font-family:inherit}
+
+/* ══════════════════════════════════════════════════════════════════
+   LOGIN OVERLAY
+══════════════════════════════════════════════════════════════════ */
+#login-overlay {
+  position:absolute;inset:0;z-index:500;
+  background:var(--c-bg);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+  transition:opacity .4s ease;
+}
+#login-overlay.fade-out{opacity:0;pointer-events:none}
+#lo-container{
+  width:100%;max-width:480px;height:100%;
+  display:flex;flex-direction:column;
+  position:relative;overflow:hidden;
+}
+
+/* Login pages */
+.lo-pg{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;
+  padding:0 24px;
+  padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  overflow-y:auto;
+  opacity:0;pointer-events:none;
+  transition:opacity .3s ease, transform .35s cubic-bezier(.4,0,.2,1);
+  transform:translateX(30px);
+}
+.lo-pg.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+.lo-pg.out-left{transform:translateX(-30px)}
+
+/* Welcome screen */
+.lo-arch-wrap{
+  margin-top:clamp(40px,8vh,72px);
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+}
+.lo-calli{font-family:'Amiri',serif;font-size:72px;line-height:1;color:var(--c-gold);direction:rtl}
+.lo-brand{font-size:9px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:var(--c-text)}
+.lo-tagline{
+  font-size:13px;color:var(--c-text-muted);text-align:center;
+  line-height:1.6;max-width:260px;margin-top:18px;
+}
+.lo-cta-block{
+  margin-top:auto;width:100%;
+  display:flex;flex-direction:column;gap:10px;
+  padding-bottom:12px;
+}
+.btn-google{
+  width:100%;padding:15px 20px;border-radius:14px;border:none;
+  background:#0F4C3A;color:#FFF;font-size:15px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+  box-shadow:0 4px 18px rgba(15,76,58,.35);transition:transform .15s,box-shadow .15s;
+  letter-spacing:.01em;
+}
+.btn-google:active{transform:scale(.98);box-shadow:0 2px 8px rgba(15,76,58,.25)}
+.btn-google svg{flex-shrink:0}
+.btn-login-sec{
+  width:100%;padding:13px 20px;border-radius:14px;
+  border:1.5px solid var(--c-border-soft);background:transparent;
+  color:var(--c-text);font-size:15px;font-weight:600;
+  cursor:pointer;transition:all .15s;
+}
+.btn-login-sec:active{transform:scale(.98)}
+.or-divider{
+  display:flex;align-items:center;gap:10px;
+  color:var(--c-text-faint);font-size:11px;font-weight:600;letter-spacing:.1em;
+}
+.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--c-border)}
+
+/* Name bottom sheet */
+#lo-name-sheet{
+  position:absolute;bottom:0;left:0;right:0;
+  background:var(--c-bg-card);border-radius:24px 24px 0 0;
+  border-top:1px solid var(--c-border);
+  padding:28px 24px;
+  padding-bottom:calc(28px + env(safe-area-inset-bottom));
+  box-shadow:0 -8px 40px rgba(0,0,0,.14);
+  transform:translateY(110%);
+  transition:transform .35s cubic-bezier(.34,1.04,.64,1);
+  z-index:10;
+}
+#lo-name-sheet.open{transform:translateY(0)}
+.sheet-handle{
+  width:36px;height:4px;border-radius:2px;
+  background:var(--c-border-soft);margin:0 auto 20px;
+}
+.sheet-title{font-size:18px;font-weight:700;color:var(--c-text);margin-bottom:4px}
+.sheet-sub{font-size:13px;color:var(--c-text-muted);margin-bottom:18px}
+.lo-input{
+  width:100%;padding:13px 14px;border-radius:12px;
+  border:1.5px solid var(--c-border-soft);background:var(--c-bg);
+  color:var(--c-text);font-size:15px;font-weight:500;outline:none;
+  transition:border-color .2s;
+}
+.lo-input:focus{border-color:var(--c-gold)}
+.lo-input::placeholder{color:var(--c-text-faint)}
+.btn-primary{
+  width:100%;padding:14px;border-radius:12px;border:none;margin-top:12px;
+  background:#0F4C3A;color:#FFF;font-size:14px;font-weight:700;
+  cursor:pointer;transition:transform .15s,opacity .2s;
+  box-shadow:0 4px 14px rgba(15,76,58,.30);
+}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+
+/* Role screen */
+.lo-heading{font-size:24px;font-weight:700;color:var(--c-text);text-align:center;margin-top:clamp(40px,8vh,72px)}
+.lo-heading-sub{font-size:13px;color:var(--c-text-muted);text-align:center;margin-top:6px}
+.role-cards{display:flex;flex-direction:column;gap:12px;width:100%;margin-top:28px}
+.role-card{
+  width:100%;padding:18px 16px;border-radius:20px;
+  border:2px solid var(--c-border-soft);background:var(--c-bg-card);
+  cursor:pointer;display:flex;align-items:center;gap:14px;
+  transition:all .2s;text-align:left;
+}
+.role-card:active{transform:scale(.99)}
+.role-card.selected{border-color:var(--c-gold);background:var(--c-gold-bg)}
+.role-card-icon{
+  width:52px;height:52px;border-radius:14px;
+  background:var(--c-bg-subtle);border:1px solid var(--c-border);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:background .2s,border-color .2s;
+}
+.role-card.selected .role-card-icon{background:rgba(184,134,42,.15);border-color:var(--c-gold)}
+.role-card-title{font-size:16px;font-weight:700;color:var(--c-text)}
+.role-card-desc{font-size:12px;color:var(--c-text-muted);line-height:1.45;margin-top:2px}
+.lo-continue-block{width:100%;margin-top:auto;padding-bottom:12px;margin-top:28px}
+
+/* Tour screen */
+.tour-header{margin-top:clamp(36px,7vh,60px);text-align:center}
+.tour-header-eye{
+  font-size:9px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--c-text-muted);margin-bottom:6px;
+}
+.tour-slides{width:100%;overflow:hidden;margin-top:24px}
+.tour-track{display:flex;transition:transform .4s cubic-bezier(.4,0,.2,1)}
+.tour-slide{
+  min-width:100%;display:flex;flex-direction:column;
+  align-items:center;padding:0 8px;gap:14px;
+}
+.tour-icon{
+  width:80px;height:80px;border-radius:22px;
+  display:flex;align-items:center;justify-content:center;
+}
+.tour-slide-title{font-size:20px;font-weight:700;color:var(--c-text);text-align:center}
+.tour-slide-desc{
+  font-size:13px;color:var(--c-text-muted);
+  text-align:center;line-height:1.65;max-width:270px;
+}
+.tour-dots{display:flex;gap:7px;margin-top:20px}
+.tour-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--c-border-soft);transition:all .25s;
+}
+.tour-dot.active{width:22px;border-radius:4px;background:var(--c-gold)}
+.tour-btns{width:100%;display:flex;flex-direction:column;gap:10px;margin-top:auto;padding-bottom:12px}
+.tour-skip{
+  background:transparent;border:none;color:var(--c-text-muted);
+  font-size:13px;font-weight:600;cursor:pointer;padding:8px;
+}
+
+/* ── Class Setup screen ──────────────────────────────────────────── */
+.class-section{
+  background:var(--c-bg-card);border:1px solid var(--c-border);
+  border-radius:16px;padding:18px;width:100%;
+}
+.class-sec-eye{font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--c-text-muted);margin-bottom:4px}
+.class-sec-title{font-size:15px;font-weight:700;color:var(--c-text);margin-bottom:4px}
+.class-sec-desc{font-size:12px;color:var(--c-text-muted);line-height:1.45;margin-bottom:12px}
+.class-join-row{display:flex;gap:8px;align-items:center}
+.class-join-row .lo-input{flex:1;font-size:17px;font-weight:800;letter-spacing:.18em;text-align:center}
+.btn-join{
+  padding:13px 16px;border-radius:12px;border:none;
+  background:#0F4C3A;color:#FFF;font-size:14px;font-weight:700;
+  cursor:pointer;white-space:nowrap;transition:all .15s;
+  box-shadow:0 3px 10px rgba(15,76,58,.30);
+}
+.btn-join:active{transform:scale(.95)}
+.class-code-box{
+  background:var(--c-bg-card);border:1px solid var(--c-border-soft);
+  border-radius:20px;padding:26px 20px 20px;
+  text-align:center;width:100%;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+}
+.class-code-eye{font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--c-text-muted)}
+.class-code-big{
+  font-size:32px;font-weight:800;letter-spacing:.3em;
+  color:var(--c-gold);
+  background:var(--c-gold-bg);border-radius:12px;
+  padding:12px 22px;
+  border:1px solid rgba(184,134,42,.28);
+  font-family:'Inter',monospace;
+}
+.copy-code-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border-radius:10px;
+  border:1px solid var(--c-border-soft);background:var(--c-bg-subtle);
+  color:var(--c-text);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;
+}
+.copy-code-btn:active{transform:scale(.95)}
+.class-code-desc{font-size:11px;color:var(--c-text-muted);line-height:1.5;max-width:240px}
+
+/* DAR class strip */
+.dar-class-strip{
+  padding:7px 18px;background:var(--c-gold-bg);
+  border-bottom:1px solid rgba(184,134,42,.18);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.dar-class-strip-label{font-size:11px;font-weight:600;color:var(--c-text-muted)}
+.dar-class-code-badge{
+  font-size:10px;font-weight:800;letter-spacing:.16em;
+  color:var(--c-gold);background:rgba(184,134,42,.12);
+  padding:3px 9px;border-radius:6px;border:1px solid rgba(184,134,42,.22);
+}
+.dar-row-role{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--c-text-faint);display:block;margin-top:1px}
+
+/* Class info in Profile */
+.class-badge-row{display:flex;align-items:center;justify-content:space-between}
+.class-badge{
+  font-size:13px;font-weight:800;letter-spacing:.18em;
+  color:var(--c-gold);background:var(--c-gold-bg);
+  padding:4px 12px;border-radius:8px;border:1px solid rgba(184,134,42,.28);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MAIN APP
+══════════════════════════════════════════════════════════════════ */
+#app{
+  /* 16:9 landscape — fills viewport but respects aspect ratio */
+  width:min(100vw, calc(100vh * 16 / 9));
+  height:100vh;
+  max-height:100vh;
+  display:flex;flex-direction:column;
+  background:var(--c-bg);
+  box-shadow:0 0 80px rgba(0,0,0,.25);
+  transition:background .25s;
+  position:relative;
+  overflow:hidden;
+}
+#app-views{
+  flex:1;display:flex;flex-direction:column;
+  height:100%;overflow:hidden;position:relative;
+}
+.view{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  padding-bottom:calc(60px + env(safe-area-inset-bottom));
+  display:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  height:calc(100vh - 56px);
+}
+.view.active{display:block}
+
+/* Bottom nav */
+#bottom-nav{
+  position:absolute;bottom:0;left:0;right:0;
+  width:100%;
+  height:56px;background:var(--c-bg-nav);
+  border-top:1px solid var(--c-border);
+  display:flex;align-items:stretch;z-index:100;
+  padding-bottom:env(safe-area-inset-bottom);
+  transition:background .25s,border-color .25s;
+}
+.nav-tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;cursor:pointer;border:none;
+  background:transparent;color:var(--c-text-faint);
+  font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  transition:color .2s;position:relative;padding:0;
+}
+.nav-tab.active{color:var(--c-gold)}
+.nav-tab svg{width:19px;height:19px}
+.nav-dot{width:3px;height:3px;border-radius:50%;background:var(--c-gold);opacity:0;transition:opacity .2s;position:absolute;bottom:5px}
+.nav-tab.active .nav-dot{opacity:1}
+
+/* Animations */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.fu{animation:fadeInUp .5s ease both}
+.d1{animation-delay:.06s}.d2{animation-delay:.13s}.d3{animation-delay:.20s}.d4{animation-delay:.27s}
+
+/* Page header */
+.pg-hd{padding:22px 18px 0;display:flex;flex-direction:column;align-items:center}
+.brand-calli{font-family:'Amiri',serif;font-size:68px;line-height:1;color:var(--c-gold);direction:rtl;margin-bottom:-4px}
+.brand-word{font-size:9px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:var(--c-text)}
+.gold-rule{display:flex;align-items:center;gap:8px;width:150px;margin:9px 0 5px}
+.gr-line{flex:1;height:1px;background:var(--c-gold);opacity:.35}
+.gr-diamond{width:5px;height:5px;background:var(--c-gold);transform:rotate(45deg);flex-shrink:0}
+.date-hijri{font-family:'Amiri',serif;font-size:14px;color:var(--c-gold);direction:rtl}
+.date-greg{font-size:11px;font-weight:500;color:var(--c-text-muted)}
+.sec-hd{padding:14px 18px 7px;display:flex;align-items:center;justify-content:space-between}
+.sec-lbl{font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--c-text-muted)}
+
+/* Ustadh banner (shown in Today for ustadh role) */
+.ustadh-banner{
+  margin:12px 14px 0;padding:12px 14px;border-radius:12px;
+  background:var(--c-gold-bg);border:1px solid rgba(184,134,42,.28);
+  display:flex;align-items:center;gap:10px;
+}
+.ustadh-banner svg{flex-shrink:0}
+.ustadh-banner-text{font-size:12px;font-weight:600;color:var(--c-text);line-height:1.4}
+.ustadh-banner-sub{font-size:10px;color:var(--c-text-muted);margin-top:2px}
+
+/* Task cards */
+.tasks{padding:0 14px;display:flex;flex-direction:column;gap:10px}
+.tcard{border-radius:16px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,.22);transition:opacity .3s}
+.tcard.done{opacity:.70}
+.tc-hd{display:flex;align-items:center;cursor:pointer;user-select:none}
+.tc-stripe{width:5px;align-self:stretch;flex-shrink:0}
+.tc-body{flex:1;display:flex;align-items:center;gap:11px;padding:13px 12px 13px 10px}
+.tc-icon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tc-icon svg{width:20px;height:20px}
+.tc-labels{flex:1;min-width:0}
+.tc-ar{font-family:'Amiri',serif;font-size:20px;line-height:1.05;direction:rtl;color:#FFF}
+.tc-en{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.58);margin-top:2px}
+.tc-btn{padding:7px 12px;border-radius:20px;border:none;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:transform .15s}
+.tc-btn:active{transform:scale(.91)}
+.tc-exp{overflow:hidden;max-height:0;transition:max-height .38s cubic-bezier(.4,0,.2,1)}
+.tc-exp.open{max-height:700px}
+.tc-exp-inner{padding:12px 14px 14px;border-top:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:10px}
+.tc-done{display:none;align-items:center;gap:7px;padding:6px 14px 10px}
+.tcard.done .tc-done{display:flex}
+.tc-done-icon{width:15px;height:15px;border-radius:50%;background:rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center}
+.tc-done-txt{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.45)}
+.f-label{font-size:9px;font-weight:700;letter-spacing:.20em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:4px}
+.f-select{
+  background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.11);border-radius:8px;
+  color:#FFF;font-size:13px;font-weight:500;padding:8px 28px 8px 10px;width:100%;
+  outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,.4)' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;
+}
+.f-select option{background:#1a1a1a;color:#fff}
+.f-input{
+  background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.11);border-radius:8px;
+  color:#FFF;font-size:13px;font-weight:500;padding:8px 10px;width:100%;outline:none;
+  transition:border-color .15s;
+}
+.f-input::placeholder{color:rgba(255,255,255,.28)}
+.f-input:focus{border-color:rgba(255,255,255,.25)}
+.f-textarea{
+  background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.10);border-radius:8px;
+  color:#FFF;font-size:12px;padding:8px 10px;width:100%;outline:none;resize:none;height:50px;
+}
+.f-textarea::placeholder{color:rgba(255,255,255,.25)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grade-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.gbtn{
+  padding:7px 2px;border-radius:8px;border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.25);color:rgba(255,255,255,.60);font-size:10px;font-weight:700;
+  cursor:pointer;transition:all .15s;text-align:center;
+}
+.gbtn:active{transform:scale(.93)}
+.gbtn.on{background:rgba(255,255,255,.18);color:#FFF;border-color:rgba(255,255,255,.28)}
+.page-range-pill{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;
+  background:rgba(255,255,255,.10);color:rgba(255,255,255,.85);
+  font-size:12px;font-weight:600;margin-top:2px;
+}
+.dawr-list{display:flex;flex-direction:column;gap:7px}
+.dawr-row{display:flex;align-items:flex-end;gap:6px}
+.dawr-row .f-select{flex:1}
+.dawr-rm{
+  width:30px;height:34px;flex-shrink:0;border-radius:8px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.3);color:rgba(255,255,255,.55);font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;padding:0;
+}
+.dawr-rm:active{transform:scale(.9)}
+.add-dawr-btn{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:8px;border-radius:10px;border:1.5px dashed rgba(255,255,255,.18);
+  background:transparent;color:rgba(255,255,255,.55);font-size:11px;font-weight:600;
+  cursor:pointer;transition:all .2s;letter-spacing:.05em;
+}
+.add-dawr-btn:active{transform:scale(.98)}
+
+/* Submit CTA */
+.submit-wrap{padding:14px 14px 18px}
+.submit-btn{
+  width:100%;padding:15px;border-radius:14px;border:none;
+  background:#0F4C3A;color:#FFF;font-size:14px;font-weight:700;letter-spacing:.03em;
+  cursor:pointer;transition:transform .15s,opacity .2s,box-shadow .2s;
+  box-shadow:0 4px 18px rgba(15,76,58,.38);
+}
+.submit-btn:active{transform:scale(.98)}
+.submit-btn:disabled{opacity:.32;cursor:not-allowed;box-shadow:none}
+.submit-btn.submitted{background:var(--c-gold);box-shadow:0 4px 18px rgba(184,134,42,.35)}
+
+/* ══════════════════════════════════════════════════════════════════
+   DAR LOG — updated
+══════════════════════════════════════════════════════════════════ */
+.dar-header{padding:22px 18px 14px}
+.dar-title-row{display:flex;align-items:flex-end;justify-content:space-between}
+.dar-eyebrow{font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--c-text-muted);margin-bottom:3px}
+.dar-title{font-size:22px;font-weight:700;color:var(--c-text)}
+.dar-desc{font-size:12px;color:var(--c-text-muted);margin-top:6px;line-height:1.4}
+
+/* Log sub-selector (segmented control) */
+.log-seg{display:flex;gap:4px;margin-top:12px;background:var(--c-bg-subtle);border:1px solid var(--c-border);border-radius:10px;padding:3px}
+.log-seg-btn{flex:1;padding:8px 10px;border:none;background:transparent;border-radius:7px;font-family:inherit;font-size:12px;font-weight:600;color:var(--c-text-muted);cursor:pointer;transition:all .18s}
+.log-seg-btn.active{background:var(--c-bg);color:var(--c-text);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+/* SP & Sabaq daily log table */
+.sp-log-wrap{padding:14px 18px 24px;overflow-x:auto}
+.sp-log-table{border-collapse:collapse;width:100%;min-width:340px;font-size:13px}
+.sp-log-table th,.sp-log-table td{border:1px solid var(--c-border);text-align:center;padding:9px 8px}
+.sp-log-daily{background:#D9D9D9;color:#222;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;border:1px solid #B5B5B5}
+html[data-theme="dark"] .sp-log-daily{background:#3A3A3A;color:#EEE;border-color:#555}
+.sp-log-table thead th{background:#EDEDED;color:#333;font-weight:700;font-size:11px;letter-spacing:.02em}
+html[data-theme="dark"] .sp-log-table thead th{background:#2A2A2A;color:#DDD}
+.sp-log-date{background:var(--c-gold-bg);color:var(--c-text);font-weight:600;white-space:nowrap;text-align:left;font-size:12px}
+.sp-log-score{font-weight:800;font-size:14px}
+.sp-log-empty{padding:36px 18px;text-align:center;color:var(--c-text-muted);font-size:13px}
+
+/* Legend — 7 score colours */
+.dar-legend{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 18px;border-top:1px solid var(--c-border);border-bottom:1px solid var(--c-border);
+  margin-bottom:4px;flex-wrap:wrap;
+}
+.dar-legend-item{display:flex;align-items:center;gap:4px}
+.dar-legend-dot{width:10px;height:10px;border-radius:3px}
+.dar-legend-txt{font-size:9px;font-weight:600;color:var(--c-text-muted)}
+
+/* Score panel */
+.dar-score-wrap{padding:4px 18px 10px;display:none}
+.dar-score-wrap.open{display:block}
+.dar-score-form{
+  background:var(--c-bg-card);border:1px solid var(--c-border);border-radius:14px;
+  padding:14px 16px;display:flex;flex-direction:column;gap:10px;
+}
+.dar-score-title{font-size:12px;font-weight:600;color:var(--c-text)}
+.dar-score-btns{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dscore-btn{
+  aspect-ratio:1;border-radius:8px;border:2px solid transparent;
+  font-size:13px;font-weight:800;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.18);
+}
+.dscore-btn:active{transform:scale(.88)}
+.dscore-btn.sel{box-shadow:0 0 0 2px #FFF,0 0 0 4px currentColor,0 4px 12px rgba(0,0,0,.28);transform:scale(1.08)}
+.dar-score-comment{display:flex;flex-direction:column;gap:5px}
+.dar-score-clbl{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--c-text-muted)}
+.dar-score-ctxt{
+  background:var(--c-bg-subtle);border:1px solid var(--c-border-soft);border-radius:8px;
+  color:var(--c-text);font-size:12px;padding:8px 10px;width:100%;
+  outline:none;resize:none;height:52px;transition:border-color .2s;
+}
+.dar-score-ctxt:focus{border-color:var(--c-gold)}
+.dar-score-ctxt::placeholder{color:var(--c-text-faint)}
+.dar-score-actions{display:flex;align-items:center;justify-content:space-between}
+.dar-save-btn{
+  padding:8px 18px;border-radius:10px;border:none;
+  background:#0F4C3A;color:#FFF;font-size:12px;font-weight:700;
+  cursor:pointer;transition:all .15s;
+}
+.dar-save-btn:active{transform:scale(.95)}
+.dar-cancel-btn{
+  background:transparent;border:none;font-size:11px;font-weight:600;
+  color:var(--c-text-muted);cursor:pointer;padding:4px;
+}
+
+.dar-scroll-wrap{overflow-x:auto;padding:0 0 8px;-webkit-overflow-scrolling:touch}
+.dar-table{border-collapse:collapse;min-width:max-content;font-size:11px}
+.dar-table th,.dar-table td{border:1px solid var(--c-border);white-space:nowrap}
+
+/* Sticky row-header */
+.dar-table th.row-hd,
+.dar-table td.row-hd{
+  position:sticky;left:0;z-index:2;
+  background:var(--c-bg-card);min-width:90px;max-width:90px;
+  font-size:11px;font-weight:600;color:var(--c-text);
+  padding:6px 8px;
+}
+.dar-table th.row-hd{
+  background:var(--c-bg);color:var(--c-text-muted);
+  font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  vertical-align:bottom;padding-bottom:6px;
+}
+
+/* Column headers — rotated, green like the Excel spreadsheet */
+.dar-col-hd{
+  padding:4px 2px;text-align:center;
+  background:#C6EFCE;color:#1A3A00;
+  min-width:38px;max-width:38px;vertical-align:bottom;
+  border:1px solid #9BD4A6;
+}
+html[data-theme="dark"] .dar-col-hd{background:#1A3A22;color:#92D050;border-color:#2A5A32}
+.dar-col-hd-inner{
+  writing-mode:vertical-rl;text-orientation:mixed;
+  transform:rotate(180deg);
+  font-size:7.5px;font-weight:600;letter-spacing:.04em;
+  display:block;padding:4px 0;white-space:nowrap;
+}
+.dar-col-hd.juz-start{border-left:2px solid #0F4C3A !important}
+/* Row-label helpers */
+.dar-row-name{font-size:8px;font-weight:700;color:var(--c-text);white-space:nowrap;padding:3px 6px;border-bottom:1px solid var(--c-border)}
+.dar-row-field{font-size:8px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--c-text-muted);padding:3px 6px;white-space:nowrap}
+
+/* Data cells — 3-row structure */
+.dar-cell{
+  min-width:38px;max-width:38px;height:68px;
+  padding:0;text-align:center;vertical-align:top;
+  cursor:pointer;position:relative;
+  transition:filter .15s;
+  background:var(--c-bg-card);
+}
+.dar-cell.juz-start{border-left:2px solid #0F4C3A}
+.dar-cell:hover{filter:brightness(.9)}
+.dar-cell.empty{background:var(--c-bg-subtle);cursor:default}
+.dar-cell.empty:hover{filter:none}
+.dar-cell.logged{background:rgba(15,76,58,.10)}
+
+/* Inner cell layout */
+.dc-inner{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;height:100%;gap:2px;padding:3px 2px;
+}
+.dc-date{
+  font-size:7px;font-weight:600;line-height:1.1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:34px;
+}
+.dar-cell.logged .dc-date{color:var(--c-text-muted)}
+.dc-score{font-size:15px;font-weight:800;line-height:1}
+.dc-score-label{font-size:6.5px;font-weight:600;letter-spacing:.04em;line-height:1;opacity:.75}
+.dc-comment-dot{
+  width:5px;height:5px;border-radius:50%;
+  background:rgba(255,255,255,.55);margin-top:1px;
+}
+.dc-wait-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--c-gold);margin:auto;
+}
+
+/* History */
+.pg-title-block{padding:22px 18px 14px;display:flex;align-items:flex-end;justify-content:space-between}
+.pg-eyebrow{font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--c-text-muted);margin-bottom:3px}
+.pg-title{font-size:22px;font-weight:700;color:var(--c-text)}
+.hist-list{padding:0 14px;display:flex;flex-direction:column;gap:8px}
+.hist-row{background:var(--c-bg-card);border-radius:14px;border:1px solid var(--c-border);overflow:hidden;transition:background .2s,border-color .2s}
+.hist-row-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;user-select:none}
+.hist-date{font-size:13px;font-weight:600;color:var(--c-text)}
+.hist-day{font-size:10px;color:var(--c-text-muted);margin-top:1px}
+.hist-pills{display:flex;gap:5px}
+.hist-pill{padding:3px 8px;border-radius:10px;font-size:9px;font-weight:700;color:#FFF}
+.hist-exp{overflow:hidden;max-height:0;transition:max-height .3s ease}
+.hist-exp.open{max-height:500px}
+.hist-exp-inner{padding:10px 14px 14px;border-top:1px solid var(--c-border);display:flex;flex-direction:column;gap:8px}
+.hist-task{display:flex;align-items:flex-start;gap:9px}
+.hist-task-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.hist-task-name{font-size:12px;font-weight:600;color:var(--c-text)}
+.hist-task-sub{font-size:11px;color:var(--c-text-muted);margin-top:1px;line-height:1.4}
+.hist-task-grade{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--c-bg-subtle);color:var(--c-text);border:1px solid var(--c-border);flex-shrink:0;margin-top:2px}
+.empty-state{display:flex;flex-direction:column;align-items:center;padding:60px 24px;gap:10px;text-align:center}
+.empty-icon{width:54px;height:54px;border-radius:16px;background:var(--c-bg-subtle);border:1px solid var(--c-border);display:flex;align-items:center;justify-content:center;margin-bottom:4px}
+.empty-title{font-size:16px;font-weight:700;color:var(--c-text)}
+.empty-sub{font-size:13px;color:var(--c-text-muted);line-height:1.5;max-width:210px}
+
+/* Profile */
+.prof-body{padding:0 14px;display:flex;flex-direction:column;gap:10px}
+.pcard{background:var(--c-bg-card);border-radius:16px;border:1px solid var(--c-border);overflow:hidden;transition:background .25s,border-color .25s}
+.pcard-row{padding:13px 15px;border-bottom:1px solid var(--c-border);transition:border-color .25s}
+.pcard-row:last-child{border-bottom:none}
+.pcard-lbl{font-size:10px;font-weight:600;letter-spacing:.20em;text-transform:uppercase;color:var(--c-text-muted);margin-bottom:6px}
+.pcard-input{background:transparent;border:none;border-bottom:1.5px solid var(--c-border-soft);color:var(--c-text);font-size:15px;font-weight:600;width:100%;outline:none;padding:4px 0;transition:border-color .2s}
+.pcard-input:focus{border-bottom-color:var(--c-gold)}
+.role-pills{display:flex;gap:7px}
+.role-pill{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--c-border-soft);color:var(--c-text-muted);background:transparent;cursor:pointer;transition:all .15s}
+.role-pill.on{background:var(--c-gold-bg);border-color:var(--c-gold);color:var(--c-gold)}
+.theme-row{display:flex;align-items:center;justify-content:space-between}
+.theme-track{width:46px;height:26px;border-radius:13px;background:var(--c-bg-subtle);border:1.5px solid var(--c-border-soft);cursor:pointer;position:relative;transition:background .25s,border-color .25s;flex-shrink:0}
+html[data-theme="dark"] .theme-track{background:var(--c-gold-bg);border-color:var(--c-gold)}
+.theme-thumb{width:20px;height:20px;border-radius:50%;background:var(--c-text-muted);position:absolute;top:2px;left:2px;transition:transform .25s,background .25s}
+html[data-theme="dark"] .theme-thumb{transform:translateX(20px);background:var(--c-gold)}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.stat-val{font-size:24px;font-weight:700;color:var(--c-text);text-align:center}
+.stat-name{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--c-text-muted);text-align:center;margin-top:2px}
+.prof-footer{padding:14px 12px 4px;text-align:center}
+.bismillah{font-family:'Amiri',serif;font-size:16px;color:var(--c-gold);direction:rtl}
+.footer-sub{font-size:10px;color:var(--c-text-faint);letter-spacing:.06em;margin-top:4px}
+
+/* ══ Class Cards ═════════════════════════════════════════════════ */
+.class-detail-card{display:flex;align-items:center;gap:12px;background:var(--c-bg-card);border:1px solid var(--c-border);border-radius:14px;padding:13px 14px;cursor:pointer;transition:background .15s,transform .1s}
+.class-detail-card:active{transform:scale(.98)}
+.class-card-icon{width:44px;height:44px;border-radius:12px;background:var(--c-bg-subtle);border:1.5px solid var(--c-border-soft);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--c-text);letter-spacing:.06em;flex-shrink:0}
+.class-card-info{flex:1;min-width:0}
+.class-card-code{font-size:15px;font-weight:800;color:var(--c-text);letter-spacing:.05em}
+.class-card-meta{font-size:11px;color:var(--c-text-muted);margin-top:2px}
+
+/* ══ Ustadh Roster ═══════════════════════════════════════════════ */
+.roster-list{padding:0 14px;display:flex;flex-direction:column;gap:10px}
+.roster-card{display:flex;align-items:center;gap:12px;background:var(--c-bg-card);border:1px solid var(--c-border);border-radius:14px;padding:12px 14px;cursor:pointer;transition:background .15s,transform .1s}
+.roster-card:active{transform:scale(.98)}
+.roster-avatar{width:44px;height:44px;border-radius:50%;background:var(--c-gold-bg);border:1.5px solid var(--c-gold);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:var(--c-gold);flex-shrink:0}
+.roster-info{flex:1;min-width:0}
+.roster-name{font-size:14px;font-weight:600;color:var(--c-text)}
+.roster-status{font-size:11px;color:var(--c-text-muted);margin-top:2px}
+.roster-chevron{color:var(--c-text-faint);flex-shrink:0}
+
+/* ══ Student Detail Overlay ══════════════════════════════════════ */
+.std-detail{position:absolute;inset:0;z-index:200;background:var(--c-bg);display:flex;flex-direction:column;overflow:hidden}
+.std-detail-hd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--c-border);flex-shrink:0}
+.std-back-btn{background:var(--c-bg-subtle);border:1px solid var(--c-border);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--c-text);cursor:pointer;display:flex;align-items:center;gap:4px}
+.std-detail-name{flex:1;font-size:16px;font-weight:700;color:var(--c-text)}
+.std-role-badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--c-gold);background:var(--c-gold-bg);border:1px solid rgba(184,134,42,.25);border-radius:6px;padding:3px 8px}
+.std-tabs-bar{display:flex;border-bottom:1px solid var(--c-border);flex-shrink:0}
+.std-tab-btn{flex:1;padding:10px 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.10em;border:none;background:transparent;color:var(--c-text-faint);cursor:pointer;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;font-family:inherit}
+.std-tab-btn.active{color:var(--c-gold);border-bottom-color:var(--c-gold)}
+.std-tab-pane{display:none;flex:1;overflow-y:auto;padding-bottom:24px}
+.std-tab-pane.active{display:block}
+
+/* ══ Scoring Panel ════════════════════════════════════════════════ */
+.score-panel{padding:14px}
+.score-section-title{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--c-gold);margin-bottom:12px}
+.score-tasks-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.score-task-row{display:flex;align-items:center;gap:10px;background:var(--c-bg-card);border:1px solid var(--c-border);border-radius:10px;padding:10px 12px}
+.score-task-info{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.score-task-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.score-task-label{font-size:12px;font-weight:600;color:var(--c-text)}
+.score-box{width:52px;flex-shrink:0;border:1.5px solid var(--c-border-soft);border-radius:8px;background:var(--c-bg-subtle);color:var(--c-text);font-size:15px;font-weight:700;text-align:center;padding:6px 4px;outline:none;font-family:inherit}
+.score-box:focus{border-color:var(--c-gold)}
+.score-extra-section{background:var(--c-bg-card);border:1px solid var(--c-border);border-radius:12px;overflow:hidden;margin-bottom:14px}
+.score-extra-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--c-border)}
+.score-extra-row:last-child{border-bottom:none}
+.score-comments-row{align-items:flex-start}
+.score-extra-lbl{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--c-text-muted);min-width:70px;flex-shrink:0}
+.score-comments-box{flex:1;background:transparent;border:none;resize:none;font-family:inherit;font-size:12px;color:var(--c-text);outline:none;min-height:56px;padding:4px 0}
+.score-save-btn{width:100%;padding:13px;border-radius:12px;background:var(--c-text);color:var(--c-bg);font-size:14px;font-weight:700;border:none;cursor:pointer;transition:opacity .2s;font-family:inherit}
+.score-save-btn:active{opacity:.8}
+/* Accordion sections in scoring panel */
+.score-accordion{background:var(--c-bg-card);border:1px solid var(--c-border);border-radius:12px;overflow:hidden;margin-bottom:8px}
+.score-accordion summary{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--c-text);list-style:none;user-select:none}
+.score-accordion summary::-webkit-details-marker{display:none}
+.score-accordion summary::after{content:'›';margin-left:auto;font-size:16px;color:var(--c-text-faint);transition:transform .2s;display:inline-block}
+.score-accordion[open] summary::after{transform:rotate(90deg)}
+.score-accordion-body{padding:0 12px 12px}
+.std-dar-scroll{overflow-x:auto;padding:10px 14px 20px}
+.hist-task-extra{font-size:10px;color:var(--c-text-faint);margin-top:6px;padding:0 8px;font-style:italic}
+
+/* Toast */
+.toast{
+  position:fixed;top:18px;left:50%;
+  transform:translateX(-50%) scale(.9);opacity:0;
+  background:#0F4C3A;color:#FAF7F0;
+  padding:10px 22px;border-radius:40px;
+  font-size:13px;font-weight:600;z-index:600;
+  box-shadow:0 8px 28px rgba(0,0,0,.28);
+  transition:opacity .3s,transform .35s cubic-bezier(.34,1.56,.64,1);
+  white-space:nowrap;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateX(-50%) scale(1)}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     APP SHELL (16:9 landscape container)
+══════════════════════════════════════════════════════════════════ -->
+<div id="app">
+
+<!-- ══════════════════════════════════════════════════════════════════
+     LOGIN OVERLAY
+══════════════════════════════════════════════════════════════════ -->
+<div id="login-overlay">
+<div id="lo-container">
+
+  <!-- ── Screen 1: Welcome ──────────────────────────────────────── -->
+  <div id="lo-welcome" class="lo-pg active">
+    <div class="lo-arch-wrap">
+      <!-- Islamic arch SVG (from Nazirah SplashScreen) -->
+      <svg viewBox="0 0 100 120" fill="none" style="width:58px;height:70px;margin-bottom:-4px" aria-hidden="true">
+        <path d="M10 120 L10 54 Q10 6 50 2 Q90 6 90 54 L90 120 Z" stroke="#0F4C3A" stroke-width="2.5" fill="var(--c-bg)"/>
+        <path d="M18 116 L18 57 Q18 16 50 12 Q82 16 82 57 L82 116 Z" stroke="#B8862A" stroke-width="1" fill="none" stroke-dasharray="3 3"/>
+        <polygon points="50,0 54,5 50,10 46,5" fill="#B8862A"/>
+        <line x1="35" y1="96" x2="28" y2="114" stroke="#0F4C3A" stroke-width="2" stroke-linecap="round"/>
+        <line x1="65" y1="96" x2="72" y2="114" stroke="#0F4C3A" stroke-width="2" stroke-linecap="round"/>
+        <line x1="30" y1="108" x2="70" y2="108" stroke="#0F4C3A" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M35 96 L40 78 Q50 74 50 74 L50 96 Z" fill="rgba(184,134,42,.2)" stroke="#0F4C3A" stroke-width="1"/>
+        <path d="M65 96 L60 78 Q50 74 50 74 L50 96 Z" fill="rgba(184,134,42,.2)" stroke="#0F4C3A" stroke-width="1"/>
+        <line x1="50" y1="74" x2="50" y2="96" stroke="#0F4C3A" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span class="lo-calli">حِفْظ</span>
+      <div class="gold-rule" style="margin:9px 0 5px"><div class="gr-line"></div><div class="gr-diamond"></div><div class="gr-line"></div></div>
+      <span class="lo-brand">The Hifz App</span>
+    </div>
+    <p class="lo-tagline">
+      Track your daily Sabaq, Sabaq Para and Dawr.<br>
+      Built for students and Ustadhs.
+    </p>
+    <div class="lo-cta-block">
+      <button class="btn-google" onclick="openNameSheet('google')">
+        <!-- Google G icon -->
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Continue with Google
+      </button>
+      <div class="or-divider">or</div>
+      <button class="btn-login-sec" onclick="openNameSheet('email')">Log in</button>
+    </div>
+  </div>
+
+  <!-- ── Screen 2: Role selection ───────────────────────────────── -->
+  <div id="lo-role" class="lo-pg">
+    <div class="lo-heading">Who are you?</div>
+    <div class="lo-heading-sub">This sets up your view in the app</div>
+    <div class="role-cards">
+      <button class="role-card" id="rc-student" onclick="selectRole('student')">
+        <div class="role-card-icon" id="rci-student">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--c-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="role-card-title">Student</div>
+          <div class="role-card-desc">I am memorising the Quran and log my daily tasks</div>
+        </div>
+      </button>
+      <button class="role-card" id="rc-ustadh" onclick="selectRole('ustadh')">
+        <div class="role-card-icon" id="rci-ustadh">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--c-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div>
+          <div class="role-card-title">Ustadh</div>
+          <div class="role-card-desc">I supervise students and enter scores in the DAR Log</div>
+        </div>
+      </button>
+    </div>
+    <div class="lo-continue-block">
+      <button class="btn-primary" id="role-continue-btn" onclick="onRoleContinue()" disabled>Continue</button>
+    </div>
+  </div>
+
+  <!-- ── Screen 3: Tour ─────────────────────────────────────────── -->
+  <div id="lo-tour" class="lo-pg">
+    <div class="tour-header">
+      <div class="tour-header-eye">Quick tour</div>
+    </div>
+    <div class="tour-slides">
+      <div class="tour-track" id="tour-track">
+        <!-- Slide 1: Today -->
+        <div class="tour-slide">
+          <div class="tour-icon" style="background:rgba(122,90,0,.15)">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#B8862A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+          </div>
+          <div class="tour-slide-title">Log Your Tasks</div>
+          <div class="tour-slide-desc">Record your Sabaq, Sabaq Para and Dawr every day. Tap a card to expand and fill in the details.</div>
+        </div>
+        <!-- Slide 2: DAR Log -->
+        <div class="tour-slide">
+          <div class="tour-icon" style="background:rgba(15,76,58,.12)">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0F4C3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+          </div>
+          <div class="tour-slide-title">Dawr Log</div>
+          <div class="tour-slide-desc">See your full Quran progress at a glance — 30 Juz × 4 quarters. Dates are auto-filled; Ustadh enters scores and comments.</div>
+        </div>
+        <!-- Slide 3: History -->
+        <div class="tour-slide">
+          <div class="tour-icon" style="background:rgba(15,76,58,.08)">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0F4C3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div class="tour-slide-title">History</div>
+          <div class="tour-slide-desc">Every session is saved. Review what you covered on any day and track your progress over time.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tour-dots" id="tour-dots">
+      <div class="tour-dot active"></div>
+      <div class="tour-dot"></div>
+      <div class="tour-dot"></div>
+    </div>
+    <div class="tour-btns">
+      <button class="btn-primary" id="tour-next-btn" onclick="tourNext()">Next</button>
+      <button class="tour-skip" onclick="tourSkip()">Skip tour</button>
+    </div>
+  </div>
+
+  <!-- ── Screen 4: Class Setup ─────────────────────────────────────── -->
+  <div id="lo-class" class="lo-pg">
+    <div class="lo-heading" id="lo-class-heading">Set up your class</div>
+    <div class="lo-heading-sub" id="lo-class-sub">Join one or more classes with a code</div>
+
+    <!-- Joined codes list (shared, updates as codes are added) -->
+    <div id="lo-joined-list" style="width:100%;display:none;margin-top:14px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--c-text-muted);margin-bottom:7px">Joined</div>
+      <div id="lo-joined-codes" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+    </div>
+
+    <!-- Ustadh: Create OR Join -->
+    <div id="lo-class-ustadh" style="width:100%;display:none;flex-direction:column;gap:10px;margin-top:18px">
+      <div id="lo-class-create-form">
+        <div class="class-section" style="margin-bottom:10px">
+          <div class="class-sec-eye">Create</div>
+          <div class="class-sec-title">Create a new class</div>
+          <div class="class-sec-desc">A unique 6-character code is generated to share with students.</div>
+          <button class="btn-primary" style="margin-top:0" onclick="onCreateClass()">Create Class</button>
+        </div>
+        <div class="or-divider" style="margin:4px 0">or</div>
+        <div class="class-section" style="margin-top:10px">
+          <div class="class-sec-eye">Join</div>
+          <div class="class-sec-title">Join an existing class</div>
+          <div class="class-join-row">
+            <input class="lo-input" id="lo-ustadh-code" placeholder="e.g. HFZ4K2" maxlength="6"
+              oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+            <button class="btn-join" onclick="onJoinClass('lo-ustadh-code')">Join</button>
+          </div>
+        </div>
+      </div>
+      <div id="lo-class-code-display" style="display:none;width:100%">
+        <div class="class-code-box">
+          <div class="class-code-eye">Your class code</div>
+          <div class="class-code-big" id="lo-display-code">------</div>
+          <button class="copy-code-btn" onclick="copyClassCode()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy code
+          </button>
+          <div class="class-code-desc">Share with students &amp; co-Ustadhs.</div>
+        </div>
+        <button class="btn-primary" onclick="resetClassForm()" style="margin-top:8px;background:transparent;color:var(--c-text-muted);border:1px solid var(--c-border)">+ Join Another Class</button>
+      </div>
+    </div>
+
+    <!-- Student: Join only -->
+    <div id="lo-class-student" style="width:100%;display:none;flex-direction:column;gap:10px;margin-top:18px">
+      <div class="class-section">
+        <div class="class-sec-title">Enter your class code</div>
+        <div class="class-sec-desc">Ask your Ustadh for the 6-character code.</div>
+        <input class="lo-input" id="lo-student-code" placeholder="e.g. HFZ4K2"
+          maxlength="6"
+          style="font-size:22px;font-weight:800;letter-spacing:.28em;text-align:center;margin-bottom:10px"
+          oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+            document.getElementById('lo-student-join-btn').disabled=this.value.length!==6">
+        <button class="btn-primary" id="lo-student-join-btn" onclick="onJoinClass('lo-student-code')" disabled style="margin-top:0">Join Class</button>
+      </div>
+    </div>
+
+    <!-- Continue & Skip -->
+    <div style="margin-top:auto;width:100%;padding-bottom:12px;padding-top:16px;display:flex;flex-direction:column;gap:8px">
+      <button class="btn-primary" id="lo-class-continue-btn" onclick="onClassContinue()" style="display:none">Continue →</button>
+      <button class="tour-skip" onclick="onClassSkip()">Skip for now</button>
+    </div>
+  </div>
+
+  <!-- ── Name bottom sheet (over welcome screen) ────────────────── -->
+  <div id="lo-name-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="sheet-title">What's your name?</div>
+    <div class="sheet-sub" id="sheet-sub">We'll use this to personalise your profile</div>
+    <input type="text" class="lo-input" id="lo-name-input"
+      placeholder="Enter your name…"
+      oninput="document.getElementById('name-submit-btn').disabled=!this.value.trim()"
+      onkeydown="if(event.key==='Enter')submitName()">
+    <button class="btn-primary" id="name-submit-btn" onclick="submitName()" disabled>Continue</button>
+  </div>
+
+</div><!-- /lo-container -->
+</div><!-- /login-overlay -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     MAIN VIEWS
+══════════════════════════════════════════════════════════════════ -->
+<div id="app-views" style="display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0">
+
+<!-- ════════════════════════ TODAY VIEW ════════════════════════════ -->
+<div id="view-today" class="view active">
+  <div class="pg-hd fu">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <svg viewBox="0 0 100 120" fill="none" style="width:54px;height:64px;margin-bottom:-4px" aria-hidden="true">
+        <path d="M10 120 L10 54 Q10 6 50 2 Q90 6 90 54 L90 120 Z" stroke="#0F4C3A" stroke-width="2.5" fill="var(--c-bg)"/>
+        <path d="M18 116 L18 57 Q18 16 50 12 Q82 16 82 57 L82 116 Z" stroke="#B8862A" stroke-width="1" fill="none" stroke-dasharray="3 3"/>
+        <polygon points="50,0 54,5 50,10 46,5" fill="#B8862A"/>
+        <line x1="35" y1="96" x2="28" y2="114" stroke="#0F4C3A" stroke-width="2" stroke-linecap="round"/>
+        <line x1="65" y1="96" x2="72" y2="114" stroke="#0F4C3A" stroke-width="2" stroke-linecap="round"/>
+        <line x1="30" y1="108" x2="70" y2="108" stroke="#0F4C3A" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M35 96 L40 78 Q50 74 50 74 L50 96 Z" fill="rgba(184,134,42,.2)" stroke="#0F4C3A" stroke-width="1"/>
+        <path d="M65 96 L60 78 Q50 74 50 74 L50 96 Z" fill="rgba(184,134,42,.2)" stroke="#0F4C3A" stroke-width="1"/>
+        <line x1="50" y1="74" x2="50" y2="96" stroke="#0F4C3A" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-calli">حِفْظ</span>
+      <div class="gold-rule"><div class="gr-line"></div><div class="gr-diamond"></div><div class="gr-line"></div></div>
+      <span class="brand-word">The Hifz App</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:10px">
+      <span class="date-hijri" id="date-hijri"></span>
+      <span class="date-greg" id="date-greg"></span>
+    </div>
+  </div>
+
+  <!-- Ustadh banner (hidden for students) -->
+  <div id="ustadh-banner" class="ustadh-banner" style="display:none">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--c-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+    <div>
+      <div class="ustadh-banner-text">Ustadh mode</div>
+      <div class="ustadh-banner-sub">Enter scores and comments in the Dawr Log</div>
+    </div>
+  </div>
+
+  <div class="sec-hd fu d1" id="daily-tasks-hd">
+    <span style="font-size:20px;font-weight:700;color:var(--c-text);letter-spacing:.01em">Daily Tasks</span>
+    <span class="sec-lbl" id="done-count" style="color:var(--c-gold)"></span>
+  </div>
+
+  <div class="tasks">
+    <!-- دَور DAWR (AMBER) — first -->
+    <div class="tcard fu d1" id="card-dawr" style="background:#9B4800">
+      <div class="tc-hd" onclick="toggleExp('dawr')">
+        <div class="tc-stripe" style="background:#FF7A1A"></div>
+        <div class="tc-body">
+          <div class="tc-icon" style="background:#BE5A00;border:1.5px solid #FF7A1A">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FFB87A" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </div>
+          <div class="tc-labels">
+            <div class="tc-ar">دَور</div>
+            <div class="tc-en">Dawr — Full Juz Revision</div>
+          </div>
+          <button class="tc-btn" id="btn-dawr" style="background:#FF7A1A;color:#2A0E00"
+            onclick="event.stopPropagation();markDone('dawr')">✓ Done</button>
+        </div>
+      </div>
+      <div class="tc-exp" id="exp-dawr">
+        <div class="tc-exp-inner">
+          <div>
+            <div class="f-label">Juz &amp; Quarter</div>
+            <div class="dawr-list" id="dawr-list"></div>
+            <button class="add-dawr-btn" onclick="addDawrEntry()" style="margin-top:6px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Another Dawr
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="tc-done">
+        <div class="tc-done-icon"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="tc-done-txt">Added</span>
+      </div>
+    </div>
+
+    <!-- صَبَق SABAQ (GOLD) — second -->
+    <div class="tcard fu d2" id="card-sabaq" style="background:#7A5A00">
+      <div class="tc-hd" onclick="toggleExp('sabaq')">
+        <div class="tc-stripe" style="background:#FFD700"></div>
+        <div class="tc-body">
+          <div class="tc-icon" style="background:#9A7200;border:1.5px solid #FFD700">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FFE880" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </div>
+          <div class="tc-labels">
+            <div class="tc-ar">صَبَق</div>
+            <div class="tc-en">Sabaq — New Memorisation</div>
+          </div>
+          <button class="tc-btn" id="btn-sabaq" style="background:#FFD700;color:#3A2800"
+            onclick="event.stopPropagation();markDone('sabaq')">✓ Done</button>
+        </div>
+      </div>
+      <div class="tc-exp" id="exp-sabaq">
+        <div class="tc-exp-inner">
+          <div class="two-col">
+            <div>
+              <div class="f-label">Surah</div>
+              <select class="f-select" id="sabaq-surah"></select>
+            </div>
+            <div>
+              <div class="f-label">From Verse</div>
+              <input type="number" class="f-input" id="sabaq-verse" min="1" max="286" placeholder="e.g. 255">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tc-done">
+        <div class="tc-done-icon"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="tc-done-txt">Added</span>
+      </div>
+    </div>
+
+    <!-- صَبَق پاره SABAQ PARA (GREEN) — third -->
+    <div class="tcard fu d3" id="card-sabaq-para" style="background:#0F6650">
+      <div class="tc-hd" onclick="toggleExp('sabaq-para')">
+        <div class="tc-stripe" style="background:#00D4A0"></div>
+        <div class="tc-body">
+          <div class="tc-icon" style="background:#157A62;border:1.5px solid #00D4A0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#5DFFD8" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+          </div>
+          <div class="tc-labels">
+            <div class="tc-ar">صَبَق پاره</div>
+            <div class="tc-en">Sabaq Para — 10-Page Review</div>
+          </div>
+          <button class="tc-btn" id="btn-sabaq-para" style="background:#00D4A0;color:#002E22"
+            onclick="event.stopPropagation();markDone('sabaq-para')">✓ Done</button>
+        </div>
+      </div>
+      <div class="tc-exp" id="exp-sabaq-para">
+        <div class="tc-exp-inner">
+          <div>
+            <div class="f-label">Starting Page</div>
+            <input type="number" class="f-input" id="sp-start" min="1" max="595"
+              placeholder="e.g. 45" oninput="updatePageRange()">
+            <div id="sp-range" style="margin-top:6px;min-height:26px"></div>
+          </div>
+        </div>
+      </div>
+      <div class="tc-done">
+        <div class="tc-done-icon"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="tc-done-txt">Added</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="submit-wrap fu d4">
+    <button class="submit-btn" id="submit-btn" onclick="submitAll()" disabled>Complete a task to submit</button>
+  </div>
+
+  <!-- ── Ustadh: Student Roster (inside class detail, not here) ── -->
+  <div id="ustadh-roster-wrap" style="display:none">
+    <div class="sec-hd fu">
+      <span class="sec-lbl">Students</span>
+      <span id="roster-count" class="sec-lbl" style="color:var(--c-gold)"></span>
+    </div>
+    <div id="ustadh-roster" class="roster-list"></div>
+  </div>
+
+  <!-- ── My Classes (visible to ALL roles) ──────────────────────── -->
+  <div id="my-classes-section">
+    <div class="sec-hd fu">
+      <span class="sec-lbl">My Classes</span>
+    </div>
+    <div id="classes-list" class="roster-list"></div>
+    <div style="padding:10px 14px 4px">
+      <button id="join-more-class-btn" onclick="openJoinClassSheet()"
+        style="width:100%;padding:10px;border-radius:10px;border:1.5px dashed var(--c-border-soft);
+          background:transparent;color:var(--c-text-muted);font-size:12px;font-weight:600;
+          cursor:pointer;font-family:inherit">
+        + Join Another Class
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ LOG VIEW ═══════════════════════════ -->
+<div id="view-darlog" class="view">
+  <div class="dar-header fu">
+    <div class="dar-title-row">
+      <div>
+        <div class="dar-eyebrow">Dashboard</div>
+        <div class="dar-title">Log</div>
+      </div>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+    </div>
+    <!-- Sub-selector: Dawr Log / SP & Sabaq Log -->
+    <div class="log-seg" id="log-seg">
+      <button class="log-seg-btn active" id="log-seg-dawr" onclick="switchLogTab('dawr')">Dawr Log</button>
+      <button class="log-seg-btn" id="log-seg-sp" onclick="switchLogTab('sp')">SP &amp; Sabaq Log</button>
+    </div>
+    <div class="dar-desc" id="dar-desc">
+      30 Juz × 4 Quarters. Dates auto-fill when Dawr is submitted. Ustadh enters score &amp; comments in the Dawr Log.
+    </div>
+  </div>
+
+  <!-- ── Sub-view: Dawr Log ── -->
+  <div id="darlog-sub-dawr">
+    <!-- 7-colour legend -->
+    <div class="dar-legend fu d1" id="dar-legend"></div>
+
+    <!-- Score + comment panel (Ustadh only) -->
+    <div class="dar-score-wrap" id="dar-score-wrap">
+      <div class="dar-score-form">
+        <div class="dar-score-title" id="dar-score-label">Score for …</div>
+        <div class="dar-score-btns" id="dar-score-btns"></div>
+        <div class="dar-score-comment" id="dar-score-date-row" style="margin-bottom:6px">
+          <div class="dar-score-clbl">Date <span style="font-weight:400;opacity:.6">(optional)</span></div>
+          <input type="text" class="dar-score-ctxt" id="dar-score-date" placeholder="e.g. 30 May"
+            style="height:32px;padding:6px 10px;resize:none;width:100%;background:var(--c-bg-subtle);border:1px solid var(--c-border);border-radius:8px;font-size:12px;color:var(--c-text);outline:none">
+        </div>
+        <div class="dar-score-comment">
+          <div class="dar-score-clbl">Comments</div>
+          <textarea class="dar-score-ctxt" id="dar-score-comment" placeholder="Optional notes for the student…"></textarea>
+        </div>
+        <div class="dar-score-actions">
+          <button class="dar-save-btn" id="dar-save-btn" onclick="saveDarScore()">Save</button>
+          <button class="dar-cancel-btn" onclick="closeDarScore()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="dar-scroll-wrap fu d2">
+      <table class="dar-table" id="dar-table"></table>
+    </div>
+  </div>
+
+  <!-- ── Sub-view: SP & Sabaq Log (daily table) ── -->
+  <div id="darlog-sub-sp" style="display:none">
+    <div class="sp-log-wrap fu d2" id="sp-log-wrap"></div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════ HISTORY VIEW ══════════════════════════ -->
+<div id="view-history" class="view">
+  <div class="pg-title-block fu">
+    <div>
+      <div class="pg-eyebrow">Sessions</div>
+      <div class="pg-title">History</div>
+    </div>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+  </div>
+  <div id="hist-list" class="hist-list"></div>
+</div>
+
+
+<!-- ════════════════════════ PROFILE VIEW ══════════════════════════ -->
+<div id="view-profile" class="view">
+  <div class="pg-title-block fu">
+    <div>
+      <div class="pg-eyebrow">Settings</div>
+      <div class="pg-title">Profile</div>
+    </div>
+    <div style="width:38px;height:38px;border-radius:50%;background:var(--c-gold-bg);border:1.5px solid var(--c-gold);display:flex;align-items:center;justify-content:center">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--c-gold)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </div>
+  </div>
+  <div class="prof-body fu d1">
+    <div class="pcard">
+      <div class="pcard-row">
+        <div class="pcard-lbl">Your Name</div>
+        <input type="text" class="pcard-input" id="prof-name" placeholder="Enter your name…" oninput="saveProf()">
+      </div>
+      <div class="pcard-row" style="border-top:1px solid var(--c-border);padding-top:12px;margin-top:0">
+        <div class="pcard-lbl">Role</div>
+        <span id="prof-role-display" style="font-size:13px;font-weight:600;color:var(--c-gold);text-transform:capitalize;letter-spacing:.03em">—</span>
+      </div>
+    </div>
+    <div class="pcard">
+      <div class="pcard-row">
+        <div class="pcard-lbl">Appearance</div>
+        <div class="theme-row">
+          <div>
+            <div style="font-size:14px;font-weight:500;color:var(--c-text)" id="theme-lbl">Light Mode</div>
+            <div style="font-size:11px;color:var(--c-text-muted);margin-top:2px">Matches the Nazirah app</div>
+          </div>
+          <div class="theme-track" onclick="toggleTheme()">
+            <div class="theme-thumb"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pcard" id="prof-sync-card" style="display:none">
+      <div class="pcard-row" style="flex-direction:column;align-items:stretch">
+        <div class="pcard-lbl" style="margin-bottom:4px">Class Sync</div>
+        <div style="font-size:11px;color:var(--c-text-faint);line-height:1.4;margin-bottom:10px">
+          Use this to link accounts on different devices or browsers. Share your code; paste theirs.
+        </div>
+        <button onclick="openSyncSheet()"
+          style="background:var(--c-gold-bg);border:1px solid var(--c-gold);border-radius:10px;color:var(--c-gold);font-size:13px;font-weight:700;padding:10px 16px;cursor:pointer;transition:all .15s;width:100%">
+          Share / Import Class Data
+        </button>
+      </div>
+    </div>
+    <div class="pcard">
+      <div class="pcard-row" id="prof-class-row" style="display:none">
+        <div class="pcard-lbl">Class Code</div>
+        <div class="class-badge-row">
+          <span class="class-badge" id="prof-class-code">—</span>
+          <button onclick="copyProfileCode()" style="background:transparent;border:none;font-size:11px;font-weight:600;color:var(--c-text-muted);cursor:pointer;text-decoration:underline">Copy</button>
+        </div>
+        <div style="font-size:11px;color:var(--c-text-faint);margin-top:6px" id="prof-class-members"></div>
+      </div>
+      <div class="pcard-row" style="text-align:center">
+        <button onclick="logOut()" style="background:var(--c-red-bg);border:1px solid rgba(197,48,48,.2);border-radius:10px;color:var(--c-red);font-size:13px;font-weight:600;padding:9px 20px;cursor:pointer;transition:all .15s">
+          Log out
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ CLASS DETAIL OVERLAY ═══════════════════════ -->
+<div id="class-detail" class="std-detail" style="display:none">
+  <div class="std-detail-hd">
+    <button class="std-back-btn" onclick="closeClassDetail()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back
+    </button>
+    <span class="std-detail-name" id="cls-detail-title">Class</span>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+      <button id="cls-share-btn" style="width:32px;height:32px;border-radius:50%;border:none;background:var(--c-gold-bg);color:var(--c-gold);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;font-size:0"
+        onclick="openSyncSheet()" title="Share / Import class data">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+      </button>
+      <button id="cls-refresh-btn" style="width:32px;height:32px;border-radius:50%;border:none;background:var(--c-bg-subtle);color:var(--c-text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;font-size:0"
+        onclick="refreshClassDetail()" title="Refresh class data">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36M20.49 15a9 9 0 0 1-14.85 3.36"/>
+        </svg>
+      </button>
+      <span class="std-role-badge" id="cls-detail-badge">—</span>
+    </div>
+  </div>
+  <!-- Ustadh: student roster inside class -->
+  <div id="cls-roster-wrap" style="display:none;flex:1;overflow-y:auto">
+    <div class="sec-hd" style="padding:14px 18px 7px">
+      <span class="sec-lbl">Students</span>
+      <span id="cls-roster-count" class="sec-lbl" style="color:var(--c-gold)"></span>
+    </div>
+    <div id="cls-ustadh-roster" class="roster-list"></div>
+  </div>
+  <!-- Student: Ustadh info + own tasks + dawr log -->
+  <div id="cls-student-wrap" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+    <div id="cls-ustadh-info"></div>
+    <div class="std-tabs-bar">
+      <button class="std-tab-btn active" data-tab="cls-tasks" onclick="switchClsTab('cls-tasks',this)">My Tasks</button>
+      <button class="std-tab-btn" data-tab="cls-darlog" onclick="switchClsTab('cls-darlog',this)">Dawr Log</button>
+    </div>
+    <div id="cls-pane-tasks" class="std-tab-pane active"></div>
+    <div id="cls-pane-darlog" class="std-tab-pane"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ JOIN CLASS SHEET (in-app) ══════════════════ -->
+<div id="join-class-sheet" style="position:absolute;inset:0;z-index:300;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center">
+  <div style="background:var(--c-bg);border-radius:20px 20px 0 0;width:100%;padding:24px 20px 32px;max-height:70%">
+    <div style="width:36px;height:4px;background:var(--c-border-soft);border-radius:2px;margin:0 auto 18px"></div>
+    <div style="font-size:16px;font-weight:700;color:var(--c-text);margin-bottom:6px">Join a Class</div>
+    <div style="font-size:12px;color:var(--c-text-muted);margin-bottom:16px">Enter the 6-character code from your Ustadh</div>
+    <input id="in-app-join-code" class="lo-input" placeholder="e.g. HFZ4K2" maxlength="6"
+      style="margin-bottom:12px;font-size:20px;font-weight:800;letter-spacing:.24em;text-align:center"
+      oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+        document.getElementById('in-app-join-btn').disabled=this.value.length!==6">
+    <button class="btn-primary" id="in-app-join-btn" onclick="inAppJoinClass()" disabled style="margin-bottom:8px">Join Class</button>
+    <button class="tour-skip" onclick="closeJoinClassSheet()">Cancel</button>
+  </div>
+</div>
+
+<!-- ══════════════════ CLASS SYNC SHEET (export / import) ══════════════════ -->
+<div id="sync-sheet" style="position:absolute;inset:0;z-index:300;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center">
+  <div style="background:var(--c-bg);border-radius:20px 20px 0 0;width:100%;padding:22px 20px 28px;max-height:88%;overflow-y:auto">
+    <div style="width:36px;height:4px;background:var(--c-border-soft);border-radius:2px;margin:0 auto 16px"></div>
+    <div style="font-size:16px;font-weight:700;color:var(--c-text);margin-bottom:4px">Class Sync</div>
+    <div style="font-size:12px;color:var(--c-text-muted);margin-bottom:18px;line-height:1.45">
+      Different devices/browsers don't share data automatically. Share your code with the other account, and paste theirs below to link up.
+    </div>
+
+    <!-- Export -->
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-text-muted);margin-bottom:8px">1 · Your code (send this)</div>
+    <textarea id="sync-export-box" readonly
+      style="width:100%;height:72px;resize:none;background:var(--c-bg-subtle);border:1px solid var(--c-border);border-radius:10px;padding:10px;font-size:11px;font-family:monospace;color:var(--c-text);outline:none;word-break:break-all;margin-bottom:8px"></textarea>
+    <button class="btn-primary" onclick="copyExportCode()" style="margin-bottom:22px">Copy My Code</button>
+
+    <!-- Import -->
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-text-muted);margin-bottom:8px">2 · Paste their code (receive)</div>
+    <textarea id="sync-import-box" placeholder="Paste the code you received here…"
+      style="width:100%;height:72px;resize:none;background:var(--c-bg-subtle);border:1px solid var(--c-border);border-radius:10px;padding:10px;font-size:11px;font-family:monospace;color:var(--c-text);outline:none;word-break:break-all;margin-bottom:8px"
+      oninput="document.getElementById('sync-import-btn').disabled=!this.value.trim()"></textarea>
+    <button class="btn-primary" id="sync-import-btn" onclick="doImportSync()" disabled style="margin-bottom:8px">Import &amp; Merge</button>
+    <button class="tour-skip" onclick="closeSyncSheet()">Close</button>
+  </div>
+</div>
+
+<!-- ════════════════ STUDENT DETAIL OVERLAY (Ustadh) ══════════════ -->
+<div id="student-detail" class="std-detail" style="display:none">
+  <div class="std-detail-hd">
+    <button class="std-back-btn" onclick="closeStudentDetail()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back
+    </button>
+    <span class="std-detail-name" id="std-detail-name">—</span>
+    <span class="std-role-badge" id="std-detail-role">student</span>
+  </div>
+  <div class="std-tabs-bar">
+    <button class="std-tab-btn active" data-tab="tasks" onclick="switchStdTab('tasks',this)">Today's Tasks</button>
+    <button class="std-tab-btn" data-tab="history" onclick="switchStdTab('history',this)">History</button>
+    <button class="std-tab-btn" data-tab="darlog" onclick="switchStdTab('darlog',this)">Dawr Log</button>
+  </div>
+  <div id="std-pane-tasks" class="std-tab-pane active"></div>
+  <div id="std-pane-history" class="std-tab-pane"></div>
+  <div id="std-pane-darlog" class="std-tab-pane"></div>
+</div>
+
+<!-- ═══════════════════════ BOTTOM NAV ═════════════════════════════ -->
+<nav id="bottom-nav">
+  <button class="nav-tab active" id="tab-today" onclick="gotoView('today')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+    </svg>
+    Today<div class="nav-dot"></div>
+  </button>
+  <button class="nav-tab" id="tab-darlog" onclick="gotoView('darlog')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+    </svg>
+    Log<div class="nav-dot"></div>
+  </button>
+  <button class="nav-tab" id="tab-history" onclick="gotoView('history')" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+    History<div class="nav-dot"></div>
+  </button>
+  <button class="nav-tab" id="tab-profile" onclick="gotoView('profile')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+    </svg>
+    Profile<div class="nav-dot"></div>
+  </button>
+</nav>
+</div><!-- /app-views -->
+
+<div class="toast" id="toast"></div>
+</div><!-- /app -->
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   CONSTANTS
+══════════════════════════════════════════════════════════════════ */
+const SURAHS = [
+  "Al-Fatihah","Al-Baqarah","Ali 'Imran","An-Nisa","Al-Ma'idah","Al-An'am","Al-A'raf",
+  "Al-Anfal","At-Tawbah","Yunus","Hud","Yusuf","Ar-Ra'd","Ibrahim","Al-Hijr","An-Nahl",
+  "Al-Isra","Al-Kahf","Maryam","Ta-Ha","Al-Anbiya","Al-Hajj","Al-Mu'minun","An-Nur",
+  "Al-Furqan","Ash-Shu'ara","An-Naml","Al-Qasas","Al-Ankabut","Ar-Rum","Luqman",
+  "As-Sajdah","Al-Ahzab","Saba","Fatir","Ya-Sin","As-Saffat","Sad","Az-Zumar","Ghafir",
+  "Fussilat","Ash-Shura","Az-Zukhruf","Ad-Dukhan","Al-Jathiyah","Al-Ahqaf","Muhammad",
+  "Al-Fath","Al-Hujurat","Qaf","Adh-Dhariyat","At-Tur","An-Najm","Al-Qamar","Ar-Rahman",
+  "Al-Waqi'ah","Al-Hadid","Al-Mujadila","Al-Hashr","Al-Mumtahanah","As-Saf","Al-Jumu'ah",
+  "Al-Munafiqun","At-Taghabun","At-Talaq","At-Tahrim","Al-Mulk","Al-Qalam","Al-Haqqah",
+  "Al-Ma'arij","Nuh","Al-Jinn","Al-Muzzammil","Al-Muddaththir","Al-Qiyamah","Al-Insan",
+  "Al-Mursalat","An-Naba","An-Nazi'at","Abasa","At-Takwir","Al-Infitar","Al-Mutaffifin",
+  "Al-Inshiqaq","Al-Buruj","At-Tariq","Al-A'la","Al-Ghashiyah","Al-Fajr","Al-Balad",
+  "Ash-Shams","Al-Layl","Ad-Duha","Ash-Sharh","At-Tin","Al-Alaq","Al-Qadr","Al-Bayyinah",
+  "Az-Zalzalah","Al-Adiyat","Al-Qari'ah","At-Takathur","Al-Asr","Al-Humazah","Al-Fil",
+  "Quraysh","Al-Ma'un","Al-Kawthar","Al-Kafirun","An-Nasr","Al-Masad","Al-Ikhlas",
+  "Al-Falaq","An-Nas"
+];
+
+// 7-level score colour system (exact hex from Promptt2)
+const SCORE_COLORS = {
+  7: { bg:'#00B050', text:'#FFF',     label:'Excellent'      },
+  6: { bg:'#92D050', text:'#1A3A00',  label:'Very Good'      },
+  5: { bg:'#00B0F0', text:'#FFF',     label:'Average'        },
+  4: { bg:'#FFFF00', text:'#3A3A00',  label:'Below Average'  },
+  3: { bg:'#FFC000', text:'#FFF',     label:'Fail'           },
+  2: { bg:'#EE0000', text:'#FFF',     label:'Worse Fail'     },
+  1: { bg:'#C00000', text:'#FFF',     label:'Abysmal'        },
+};
+
+const QTR_LABELS  = ['1/4','2/4','3/4','4/4'];
+const QTR_KEYS    = ['q1','q2','q3','q4'];
+const TASK_META   = {
+  sabaq:       { en:'Sabaq',      ar:'صَبَق',     color:'#FFD700', fill:'#7A5A00' },
+  'sabaq-para':{ en:'Sabaq Para', ar:'صَبَق پاره', color:'#00D4A0', fill:'#0F6650' },
+  dawr:        { en:'Dawr',       ar:'دَور',      color:'#FF7A1A', fill:'#9B4800' },
+};
+
+/* Dawr Log header — alternate colour per juz: odd green, even blue */
+const JUZ_HD_GREEN = { bg:'#99FFAC', border:'#5FCC78', text:'#0B3D17' };
+const JUZ_HD_BLUE  = { bg:'#99CEFF', border:'#5FA3E5', text:'#0B2E4D' };
+function juzHdColor(j){ return (j % 2 === 1) ? JUZ_HD_GREEN : JUZ_HD_BLUE; }
+
+/* ══════════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════════ */
+const S = {
+  tasks: {
+    sabaq:       { done:false, surah:'', verse:'', grade:null, notes:'' },
+    'sabaq-para':{ done:false, startPage:'', grade:null, notes:'' },
+    dawr:        { done:false, entries:[], grade:null, notes:'' },
+  },
+  darLog:  {},  // key: J{n}Q{q1-q4} → { dateLabel, score, comment }
+  history: [],
+  profile: { name:'', role:'student', classCodes:[] },
+  submitted: false,
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   AUTH
+══════════════════════════════════════════════════════════════════ */
+const AUTH_KEY = 'hifz-auth';
+
+function loadAuthData() {
+  try { return JSON.parse(localStorage.getItem(AUTH_KEY)||'{}'); } catch(e){ return {}; }
+}
+function saveAuthData(obj) {
+  try { localStorage.setItem(AUTH_KEY, JSON.stringify(obj)); } catch(e){}
+}
+
+/* Login flow state */
+let _pendingName = '';
+let _pendingRole = null;
+let _loginMode   = 'google'; // 'google' | 'email'
+
+function openNameSheet(mode) {
+  _loginMode = mode;
+  const t = document.getElementById('sheet-title');
+  const s = document.getElementById('sheet-sub');
+  if (mode==='google') {
+    t.textContent = "What's your name?";
+    s.textContent = "We'll use this as your Google display name";
+  } else {
+    t.textContent = "Log in";
+    s.textContent = "Enter your name to continue (no password needed for now)";
+  }
+  document.getElementById('lo-name-input').value = '';
+  document.getElementById('name-submit-btn').disabled = true;
+  document.getElementById('lo-name-sheet').classList.add('open');
+  setTimeout(()=>document.getElementById('lo-name-input').focus(), 350);
+}
+
+function submitName() {
+  const name = document.getElementById('lo-name-input').value.trim();
+  if (!name) return;
+  _pendingName = name;
+  document.getElementById('lo-name-sheet').classList.remove('open');
+  // Brief delay then go to role screen
+  setTimeout(()=>showLoScreen('lo-role'), 200);
+}
+
+function selectRole(role) {
+  _pendingRole = role;
+  document.getElementById('rc-student').classList.toggle('selected', role==='student');
+  document.getElementById('rc-ustadh').classList.toggle('selected', role==='ustadh');
+  document.getElementById('role-continue-btn').disabled = false;
+}
+
+function onRoleContinue() {
+  if (!_pendingRole) return;
+  // Show class setup screen
+  showLoScreen('lo-class');
+  const isUstadh = _pendingRole === 'ustadh';
+  // Reset class screen state
+  _pendingClassCodes = [];
+  resetClassForm();
+  const uel = document.getElementById('lo-class-ustadh');
+  const sel = document.getElementById('lo-class-student');
+  uel.style.display = isUstadh ? 'flex' : 'none';
+  sel.style.display = !isUstadh ? 'flex' : 'none';
+  document.getElementById('lo-class-heading').textContent = isUstadh ? 'Set up your class' : 'Join your class';
+  document.getElementById('lo-class-sub').textContent = isUstadh
+    ? 'Create a class or join one with a code'
+    : 'Enter the code your Ustadh shared with you';
+}
+
+/* Tour */
+let _tourSlide = 0;
+function tourNext() {
+  _tourSlide++;
+  if (_tourSlide >= 3) {
+    completeLogin(true);
+  } else {
+    updateTourSlide(_tourSlide);
+  }
+}
+function tourSkip() { completeLogin(true); }
+
+function updateTourSlide(idx) {
+  _tourSlide = idx;
+  document.getElementById('tour-track').style.transform = `translateX(-${idx*100}%)`;
+  const dots = document.querySelectorAll('.tour-dot');
+  dots.forEach((d,i)=>d.classList.toggle('active', i===idx));
+  const btn = document.getElementById('tour-next-btn');
+  btn.textContent = idx===2 ? 'Get Started' : 'Next';
+}
+
+function completeLogin(tourDone=false) {
+  saveAuthData({ loggedIn:true, name:_pendingName, role:_pendingRole,
+    classCodes:_pendingClassCodes, tourDone:tourDone||true });
+  S.profile.name       = _pendingName;
+  S.profile.role       = _pendingRole;
+  S.profile.classCodes = [..._pendingClassCodes];
+  S.profile.classCode  = _pendingClassCodes[0] || null;
+  save();
+  hideLoginOverlay();
+}
+
+function logOut() {
+  if (!confirm('Log out and return to the welcome screen?')) return;
+  saveAuthData({});
+  localStorage.removeItem('hifz-data');
+  window.location.reload();
+}
+
+function showLoScreen(id) {
+  document.querySelectorAll('.lo-pg').forEach(p=>{
+    if (p.id===id) {
+      p.classList.remove('out-left');
+      p.classList.add('active');
+    } else if (p.classList.contains('active')) {
+      p.classList.add('out-left');
+      p.classList.remove('active');
+    }
+  });
+}
+
+function hideLoginOverlay() {
+  const lo = document.getElementById('login-overlay');
+  lo.classList.add('fade-out');
+  setTimeout(()=>{
+    lo.style.display='none';
+    const views = document.getElementById('app-views');
+    if (views) { views.style.display='flex'; }
+    // Now do full app init
+    appInit();
+  }, 400);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PERSIST
+══════════════════════════════════════════════════════════════════ */
+function loadData() {
+  try {
+    const d = JSON.parse(localStorage.getItem('hifz-data')||'{}');
+    if (d.darLog)  S.darLog   = d.darLog;
+    if (d.history) S.history  = d.history;
+    if (d.profile) Object.assign(S.profile, d.profile);
+  } catch(e){}
+  // Merge Ustadh scores from class storage into local S.darLog
+  mergeClassScores();
+  // Load theme
+  const t = localStorage.getItem('hifz-theme')||'light';
+  document.documentElement.setAttribute('data-theme', t);
+  updateThemeLbl();
+}
+
+/* Pull Ustadh-entered scores from class storage into S.darLog and S.history so they show on student's view */
+function mergeClassScores() {
+  const codes = S.profile.classCodes || (S.profile.classCode ? [S.profile.classCode] : []);
+  if (!codes.length) return;
+  const classes = loadClasses();
+  for (const code of codes) {
+    const memberData = classes[code]?.members?.[S.profile.name];
+    if (!memberData) continue;
+
+    // Merge Dawr scores from darLog
+    if (memberData.darLog) {
+      for (const [key, entry] of Object.entries(memberData.darLog)) {
+        if (!S.darLog[key]) S.darLog[key] = {};
+        if (entry.score   != null) S.darLog[key].score   = entry.score;
+        if (entry.comment != null) S.darLog[key].comment = entry.comment;
+        if (!S.darLog[key].dateLabel && entry.dateLabel) S.darLog[key].dateLabel = entry.dateLabel;
+      }
+    }
+
+    // Merge Sabaq/Sabaq Para scores from history
+    if (memberData.history?.length && S.history.length) {
+      // Match sessions by dateLabel and merge scores from class storage into local history
+      for (let i = 0; i < Math.min(S.history.length, memberData.history.length); i++) {
+        const localSession = S.history[i];
+        const classSession = memberData.history[i];
+        if (classSession.sabaqScore != null) localSession.sabaqScore = classSession.sabaqScore;
+        if (classSession.sabaqParaScore != null) localSession.sabaqParaScore = classSession.sabaqParaScore;
+        if (classSession.tajwid != null) localSession.tajwid = classSession.tajwid;
+        if (classSession.adab != null) localSession.adab = classSession.adab;
+        if (classSession.sessionComment && !localSession.sessionComment) localSession.sessionComment = classSession.sessionComment;
+      }
+    }
+
+    // If local history is empty (fresh device/clear), pull from class storage
+    if (!S.history.length && memberData.history?.length) {
+      S.history = JSON.parse(JSON.stringify(memberData.history));
+    }
+    // darRowSets are read on-demand by getMemberData
+  }
+}
+
+function save() {
+  try {
+    localStorage.setItem('hifz-data',
+      JSON.stringify({ darLog:S.darLog, history:S.history, profile:S.profile }));
+  } catch(e){}
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════════ */
+function init() {
+  // Load theme early (avoids flash)
+  const t = localStorage.getItem('hifz-theme')||'light';
+  document.documentElement.setAttribute('data-theme', t);
+
+  const auth = loadAuthData();
+  if (auth.loggedIn && auth.name) {
+    // Already logged in — skip overlay
+    // Backward compat: convert old single classCode string → array
+    const codes = auth.classCodes
+      ? auth.classCodes
+      : (auth.classCode ? [auth.classCode] : []);
+    _pendingName        = auth.name;
+    _pendingRole        = auth.role || 'student';
+    _pendingClassCodes  = codes;
+    S.profile.name       = _pendingName;
+    S.profile.role       = _pendingRole;
+    S.profile.classCodes = codes;
+    S.profile.classCode  = codes[0] || null;   // primary code (backward compat)
+    loadData();
+    document.getElementById('login-overlay').style.display = 'none';
+    const views = document.getElementById('app-views');
+    if (views) { views.style.display='flex'; }
+    appInit();
+  } else {
+    // Show login overlay
+    document.getElementById('login-overlay').style.display = 'flex';
+  }
+}
+
+function appInit() {
+  loadData();
+  buildSurahSelect();
+  addDawrEntry();
+  setDates();
+  applyProfile();
+  buildDarLegend();
+  renderHistory();
+  renderDarTable();
+  updateSubmitBtn();
+  applyRoleUI();
+
+  // ── Cross-tab sync: reload class data when another tab updates localStorage ──
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'hifz-classes') {
+      // Another tab updated classes — merge fresh data
+      mergeClassScores();
+      // Refresh class detail if open
+      if (_activeClassCode) {
+        setTimeout(() => refreshClassDetail(), 100);
+      }
+      // Refresh main history if viewing it
+      if (document.getElementById('hist-list')?.innerHTML) {
+        setTimeout(() => renderHistory(), 100);
+      }
+    }
+  });
+
+  // ── Auto-refresh when tab becomes visible (user switched back to this tab) ──
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && _activeClassCode) {
+      refreshClassDetail();
+    }
+  });
+}
+
+function buildSurahSelect() {
+  const el = document.getElementById('sabaq-surah');
+  if (el.options.length) return; // already built
+  SURAHS.forEach((s,i)=>{
+    const o = document.createElement('option');
+    o.value=s; o.textContent=(i+1)+'. '+s; el.appendChild(o);
+  });
+}
+
+function setDates() {
+  const now = new Date();
+  try {
+    document.getElementById('date-hijri').textContent =
+      now.toLocaleDateString('ar-SA-u-ca-islamic',{day:'numeric',month:'long',year:'numeric'});
+  } catch(e){}
+  document.getElementById('date-greg').textContent =
+    now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+
+function buildDarLegend() {
+  const el = document.getElementById('dar-legend');
+  const items = [
+    { color:'rgba(15,76,58,.10)', border:'1px solid var(--c-border)', label:'Logged' },
+    ...Object.entries(SCORE_COLORS).reverse().map(([sc,v])=>({
+      color:v.bg, border:'none', label: sc+' – '+v.label
+    }))
+  ];
+  el.innerHTML = items.map(it=>
+    `<div class="dar-legend-item">
+      <div class="dar-legend-dot" style="background:${it.color};border:${it.border}"></div>
+      <span class="dar-legend-txt">${it.label}</span>
+    </div>`
+  ).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ROLE-BASED UI
+══════════════════════════════════════════════════════════════════ */
+function applyRoleUI() {
+  const isUstadh = S.profile.role === 'ustadh';
+
+  // Today view: ustadh sees student roster, students see task cards
+  document.getElementById('ustadh-banner').style.display = 'none'; // banner replaced by roster
+  const taskSection    = document.querySelector('.tasks');
+  const submitWrap     = document.querySelector('.submit-wrap');
+  const todayHd        = document.querySelector('.sec-hd');
+  const rosterWrap     = document.getElementById('ustadh-roster-wrap');
+  if (taskSection) taskSection.style.display  = isUstadh ? 'none' : '';
+  if (submitWrap)  submitWrap.style.display   = isUstadh ? 'none' : '';
+  if (todayHd)     todayHd.style.display      = isUstadh ? 'none' : '';
+  if (rosterWrap)  rosterWrap.style.display   = isUstadh ? 'block' : 'none';
+
+  // History tab: visible for both roles
+  const histTab = document.getElementById('tab-history');
+  if (histTab) histTab.style.display = '';
+
+  // DAR desc
+  const dd = document.getElementById('dar-desc');
+  if (dd) dd.textContent = isUstadh
+    ? 'Tap any logged cell to enter a score (1–7) and comments.'
+    : '30 Juz × 4 Quarters. Your Dawr Log is updated when you submit. Ustadh will enter scores.';
+
+  // Hide ustadh-roster-wrap (moved inside class detail)
+  const rw = document.getElementById('ustadh-roster-wrap');
+  if (rw) rw.style.display = 'none';
+
+  // My Classes section always visible; render it
+  renderClassList();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   VIEW SWITCHING
+══════════════════════════════════════════════════════════════════ */
+function gotoView(name) {
+  // History accessible to all roles
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  const viewEl = document.getElementById('view-'+name);
+  const tabEl  = document.getElementById('tab-'+name);
+  if (!viewEl) return;
+  viewEl.classList.add('active');
+  if (tabEl && tabEl.style.display !== 'none') tabEl.classList.add('active');
+  if (name==='history') renderHistory();
+  if (name==='darlog')  renderLogView();
+  if (name==='profile') applyProfile();
+}
+
+/* ── Log view: sub-tab switching (Dawr Log / SP & Sabaq Log) ──────── */
+let _logSubTab = 'dawr';
+function switchLogTab(tab) {
+  _logSubTab = tab;
+  document.getElementById('log-seg-dawr')?.classList.toggle('active', tab==='dawr');
+  document.getElementById('log-seg-sp')?.classList.toggle('active', tab==='sp');
+  document.getElementById('darlog-sub-dawr').style.display = tab==='dawr' ? '' : 'none';
+  document.getElementById('darlog-sub-sp').style.display   = tab==='sp'   ? '' : 'none';
+  const dd = document.getElementById('dar-desc');
+  if (dd) dd.textContent = tab==='sp'
+    ? 'Daily performance — Sabaq Para, Sabaq, Tajwid & Adab. A new row is added each day you submit.'
+    : (S.profile.role==='ustadh'
+        ? 'Tap any logged cell to enter a score (1–7) and comments.'
+        : '30 Juz × 4 Quarters. Your Dawr Log is updated when you submit. Ustadh will enter scores.');
+  renderLogView();
+}
+function renderLogView() {
+  if (_logSubTab === 'sp') renderSpLog();
+  else                     renderDarTable();
+}
+
+/* ── SP & Sabaq Log: daily performance table (auto-grows per submission) ── */
+function fmtSpDate(session) {
+  const d = session.id ? new Date(session.id) : null;
+  if (d && !isNaN(d.getTime())) {
+    const wd  = d.toLocaleDateString('en-GB',{weekday:'short'});
+    const day = d.getDate();
+    const mon = d.toLocaleDateString('en-GB',{month:'short'});
+    const yr  = String(d.getFullYear()).slice(-2);
+    return `${wd}, ${day} ${mon} '${yr}`;
+  }
+  const wd = (session.dayLabel||'').slice(0,3);
+  return wd ? `${wd}, ${session.dateLabel||''}` : (session.dateLabel||'—');
+}
+function spScoreCell(val) {
+  if (val == null || val === '') return `<td class="sp-log-score"></td>`;
+  const col = SCORE_COLORS[val];
+  const style = col ? `background:${col.bg};color:${col.text}` : '';
+  return `<td class="sp-log-score" style="${style}">${val}</td>`;
+}
+function renderSpLog(history) {
+  const wrap = document.getElementById('sp-log-wrap');
+  if (!wrap) return;
+  const sessions = (history || S.history || []);
+
+  if (!sessions.length) {
+    wrap.innerHTML = `<div class="sp-log-empty">
+      <div style="font-weight:600;color:var(--c-text);margin-bottom:4px">No sessions logged yet</div>
+      Submit your daily tasks and a row will be added here automatically.
+    </div>`;
+    return;
+  }
+
+  // Oldest first (chronological top-to-bottom: a new row is added each day)
+  const ordered = sessions.slice().reverse();
+
+  let rows = '';
+  for (const s of ordered) {
+    rows += `<tr>
+      <td class="sp-log-date">${escHtml(fmtSpDate(s))}</td>
+      ${spScoreCell(s.sabaqParaScore)}
+      ${spScoreCell(s.sabaqScore)}
+      ${spScoreCell(s.tajwid)}
+      ${spScoreCell(s.adab)}
+    </tr>`;
+  }
+
+  wrap.innerHTML = `<table class="sp-log-table">
+    <thead>
+      <tr><th class="sp-log-daily" colspan="5">Daily</th></tr>
+      <tr>
+        <th style="text-align:left">Date</th>
+        <th>Sabaq Para</th>
+        <th>Sabaq</th>
+        <th>Tajwid</th>
+        <th>Adab</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function toggleExp(id) {
+  document.getElementById('exp-'+id)?.classList.toggle('open');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SABAQ PARA — page range
+══════════════════════════════════════════════════════════════════ */
+function updatePageRange() {
+  const v = parseInt(document.getElementById('sp-start').value,10);
+  const el = document.getElementById('sp-range');
+  if (!v||v<1||v>604){ el.innerHTML=''; return; }
+  const end = Math.min(v+9,604);
+  el.innerHTML=`<span class="page-range-pill">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2.5">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+    </svg>
+    Pages ${v} – ${end}</span>`;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   DAWR — dynamic entries
+══════════════════════════════════════════════════════════════════ */
+let dawrCount = 0;
+function addDawrEntry() {
+  dawrCount++;
+  const id = 'dawr-'+dawrCount;
+  const row = document.createElement('div');
+  row.className='dawr-row'; row.id=id;
+  row.innerHTML=`
+    <div style="flex:1">
+      <div class="f-label">Juz</div>
+      <select class="f-select" id="${id}-juz">${
+        Array.from({length:30},(_,i)=>`<option value="${i+1}">Juz ${i+1}</option>`).join('')
+      }</select>
+    </div>
+    <div style="flex:1">
+      <div class="f-label">Quarter</div>
+      <select class="f-select" id="${id}-qtr">
+        <option value="q1">1/4  (pp. 1–5)</option>
+        <option value="q2">2/4  (pp. 1–10)</option>
+        <option value="q3">3/4  (pp. 1–15)</option>
+        <option value="q4">4/4  (pp. 1–20)</option>
+      </select>
+    </div>
+    ${dawrCount>1?`<button class="dawr-rm" onclick="removeDawrEntry('${id}')">×</button>`:''}`;
+  document.getElementById('dawr-list').appendChild(row);
+}
+function removeDawrEntry(id) {
+  document.getElementById(id)?.remove();
+}
+function getDawrEntries() {
+  return Array.from(
+    document.getElementById('dawr-list').querySelectorAll('.dawr-row')
+  ).map(row=>({
+    juz: parseInt(row.querySelector('[id$="-juz"]')?.value,10),
+    quarter: row.querySelector('[id$="-qtr"]')?.value,
+  }));
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TASK INTERACTIONS
+══════════════════════════════════════════════════════════════════ */
+function setGrade(taskId, grade, btn) {
+  document.querySelectorAll(`#exp-${taskId} .gbtn`).forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  S.tasks[taskId].grade = grade;
+}
+
+function markDone(id) {
+  if (S.submitted) return;
+  const t = S.tasks[id];
+  if (id==='dawr')       t.entries  = getDawrEntries();
+  if (id==='sabaq')    { t.surah = document.getElementById('sabaq-surah')?.value;
+                         t.verse = document.getElementById('sabaq-verse')?.value; }
+  if (id==='sabaq-para') t.startPage = document.getElementById('sp-start')?.value;
+
+  t.done = !t.done;
+  document.getElementById('card-'+id)?.classList.toggle('done', t.done);
+  if (t.done) document.getElementById('exp-'+id)?.classList.remove('open');
+  updateDoneCount();
+  updateSubmitBtn();
+}
+
+function updateDoneCount() {
+  const n = ['sabaq','sabaq-para','dawr'].filter(id=>S.tasks[id].done).length;
+  document.getElementById('done-count').textContent = n>0 ? n+'/3 done' : '';
+}
+
+function updateSubmitBtn() {
+  const n = ['sabaq','sabaq-para','dawr'].filter(id=>S.tasks[id].done).length;
+  const btn = document.getElementById('submit-btn');
+  if (!btn) return;
+  if (S.profile.role==='ustadh') {
+    btn.disabled=true;
+    btn.textContent='Ustadh — score via DAR Log';
+    return;
+  }
+  if (S.submitted) {
+    btn.disabled=true; btn.textContent='✓ Submitted — Barak Allahu Feek';
+    btn.classList.add('submitted'); return;
+  }
+  btn.classList.remove('submitted');
+  btn.disabled = n===0;
+  btn.textContent = n===0 ? 'Complete a task to submit' : `Submit Today's Session (${n}/3)`;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SUBMIT
+══════════════════════════════════════════════════════════════════ */
+function submitAll() {
+  if (S.submitted) return;
+  if (S.profile.role==='ustadh') { showToast('Ustadh: use the Dawr Log to enter scores'); return; }
+
+  const now = new Date();
+  const dl  = now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'});
+
+  // Auto-populate DAR Log for each Dawr entry
+  if (S.tasks.dawr.done) {
+    S.tasks.dawr.entries = getDawrEntries();
+    S.tasks.dawr.entries.forEach(({juz, quarter}) => {
+      const key = `J${juz}Q${quarter}`;
+      if (S.darLog[key] && S.darLog[key].score != null) {
+        // Cycle complete (Ustadh already scored) — archive old row, start fresh
+        S._cycleCompletedKeys = S._cycleCompletedKeys || [];
+        S._cycleCompletedKeys.push({ key, entry: {...S.darLog[key]} });
+        S.darLog[key] = { dateLabel:dl, score:null, comment:'' };
+      } else if (!S.darLog[key]) {
+        S.darLog[key] = { dateLabel:dl, score:null, comment:'' };
+      } else {
+        S.darLog[key].dateLabel = dl;  // update date for re-submitted unscored entry
+      }
+    });
+  }
+
+  const session = {
+    id: now.getTime(),
+    dateLabel: now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
+    dayLabel:  now.toLocaleDateString('en-GB',{weekday:'long'}),
+    tasks: ['sabaq','sabaq-para','dawr']
+      .filter(id=>S.tasks[id].done)
+      .map(id=>({ id, ...JSON.parse(JSON.stringify(S.tasks[id])) })),
+  };
+  S.history.unshift(session);
+  S.submitted = true;
+  save();
+  syncToClass();      // push data into class storage so Ustadh sees it
+  updateSubmitBtn();
+  showToast('🌙 Session saved — Barak Allahu Feek!');
+  renderLogView();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   DAR LOG — render & interactions
+══════════════════════════════════════════════════════════════════ */
+let _darTarget = null;   // key of cell being scored
+let _darMember = null;   // member name being scored
+let _darRowIdx = 0;      // 0 = darLog (auto row), 1+ = darRowSets[idx-1] (manual rows)
+
+function renderDarTable() {
+  const tbl = document.getElementById('dar-table');
+  if (!tbl) return;
+
+  const isUstadh = S.profile.role === 'ustadh';
+  const classMembers = (isUstadh || S.profile.classCode) ? getClassMembers(S.profile.classCode) : null;
+
+  /* Class strip above the table */
+  const existingStrip = document.getElementById('dar-class-strip');
+  if (existingStrip) existingStrip.remove();
+  if (S.profile.classCode) {
+    const strip = document.createElement('div');
+    strip.id = 'dar-class-strip';
+    strip.className = 'dar-class-strip fu';
+    const memberCount = classMembers ? classMembers.length : 0;
+    strip.innerHTML = `<span class="dar-class-strip-label">${memberCount} member${memberCount!==1?'s':''} in class</span>
+      <span class="dar-class-code-badge">${S.profile.classCode}</span>`;
+    tbl.parentElement.insertAdjacentElement('beforebegin', strip);
+  }
+
+  /* Determine which rows to show */
+  let rows; // array of { name, role, darLog }
+  if (isUstadh && classMembers && classMembers.length > 0) {
+    rows = classMembers;
+  } else if (classMembers && classMembers.length > 0) {
+    // Student: show only their own row
+    const me = classMembers.find(m => m.name === S.profile.name);
+    rows = [me || { name: S.profile.name||'Student', role:'student', darLog: S.darLog }];
+  } else {
+    rows = [{ name: S.profile.name||'Student', role:'student', darLog: S.darLog }];
+  }
+
+  /* ── Header row: alternate green/blue per juz, "Juz N – Q1" labels, vertical text ── */
+  let head = `<thead><tr><th class="row-hd" style="background:#E8E8E8;color:#333;font-size:8px;font-weight:700;border:1px solid #C4C4C4;vertical-align:bottom">Name</th>`;
+  for (let j=1;j<=30;j++) {
+    const c = juzHdColor(j);
+    for (let qi=0;qi<4;qi++) {
+      const jBrd = qi===0 ? `border-left:2px solid ${c.border}` : '';
+      head += `<th class="dar-col-hd${qi===0?' juz-start':''}" style="background:${c.bg};color:${c.text};border:1px solid ${c.border};${jBrd}">
+        <span class="dar-col-hd-inner">Juz ${j} – Q${qi+1}</span></th>`;
+    }
+  }
+  head += '</tr></thead>';
+
+  /* ── One Date row + one Score row per member ── */
+  let body = '<tbody>';
+  for (const member of rows) {
+    const mDarLog = (member.name===S.profile.name) ? S.darLog : (member.darLog||{});
+    const mName   = escHtml(member.name);
+    const mRole   = member.role || '';
+
+    let dateR  = `<tr><td class="row-hd dar-row-name">${mName}<br><span style="font-weight:400;color:var(--c-text-faint);font-size:7px">${mRole}</span></td>`;
+    let scoreR = `<tr><td class="row-hd dar-row-field" style="border-bottom:2px solid var(--c-border)">Score /7</td>`;
+
+    for (let j=1;j<=30;j++) for (let qi=0;qi<4;qi++) {
+      const qKey = QTR_KEYS[qi];
+      const key  = `J${j}Q${qKey}`;
+      const e    = mDarLog[key];
+      const jS   = qi===0;
+      const lbl  = `Juz ${j} – Q${qi+1}`;
+      const jBrd = jS ? 'border-left:2px solid #0F4C3A' : '';
+
+      /* Date cell */
+      dateR += `<td class="dar-cell${jS?' juz-start':''}" style="${jBrd}">
+        ${e?.dateLabel ? `<div class="dc-inner"><span class="dc-date" style="font-size:7px">${escHtml(e.dateLabel)}</span></div>` : ''}
+      </td>`;
+
+      /* Score cell */
+      const sc  = (e?.score != null) ? parseInt(e.score,10) : null;
+      const col = sc ? SCORE_COLORS[sc] : null;
+      const bg  = col ? `background:${col.bg};color:${col.text}` : '';
+      // Merge border + background into one style string to avoid duplicate style attrs
+      const cellStyle = [jBrd, bg].filter(Boolean).join(';');
+      const cellClick = isUstadh
+        ? `data-key="${key}" data-member="${mName}" data-lbl="${lbl}"
+           onclick="openDarScore(this.dataset.key,this.dataset.member,this.dataset.lbl)"`
+        : (e && !sc ? `onclick="showToast('Score pending from Ustadh')"` : '');
+
+      scoreR += `<td class="dar-cell${jS?' juz-start':''}" style="${cellStyle};${isUstadh?'cursor:pointer':''}" ${cellClick}>
+        <div class="dc-inner">
+          ${sc!=null
+            ? `<span class="dc-score">${sc}</span>`
+            : (isUstadh && e ? `<span style="font-size:8px;opacity:.35">+</span>` : '')
+          }
+        </div>
+      </td>`;
+    }
+    dateR  += '</tr>';
+    scoreR += '</tr>';
+    body   += dateR + scoreR;
+  }
+  body += '</tbody>';
+  tbl.innerHTML = head + body;
+}
+
+function openDarScore(key, memberName, label, rowIdx=0) {
+  if (S.profile.role !== 'ustadh') { showToast('Only Ustadh can enter scores'); return; }
+  _darTarget = key;
+  _darMember = memberName;
+  _darRowIdx = rowIdx;
+
+  // Get existing entry from the correct row set
+  let e = null;
+  if (rowIdx === 0) {
+    e = getMemberDarEntry(memberName, key) || {};
+  } else {
+    const classes = loadClasses();
+    const code = _activeClassCode || S.profile.classCode;
+    const sets = classes[code]?.members?.[memberName]?.darRowSets;
+    e = sets?.[rowIdx-1]?.[key] || {};
+  }
+
+  document.getElementById('dar-score-label').textContent = 'Score for '+escHtml(memberName)+' — '+label;
+  // Date field
+  const dateInput = document.getElementById('dar-score-date');
+  if (dateInput) dateInput.value = e.dateLabel || '';
+  document.getElementById('dar-score-comment').value = e.comment || '';
+
+  // Build 7 score buttons with correct colours
+  const btns = document.getElementById('dar-score-btns');
+  btns.innerHTML = '';
+  for (let i=7; i>=1; i--) {
+    const col = SCORE_COLORS[i];
+    const b   = document.createElement('button');
+    b.className = 'dscore-btn' + (e.score===i ? ' sel' : '');
+    b.textContent = i;
+    b.style.background = col.bg;
+    b.style.color = col.text;
+    b.style.setProperty('color', col.text);
+    b.title = col.label;
+    b.onclick = () => selectDarScore(i, b);
+    btns.appendChild(b);
+  }
+
+  document.getElementById('dar-score-wrap').classList.add('open');
+  // Scroll to score wrap
+  document.getElementById('dar-score-wrap').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+let _selectedScore = null;
+function selectDarScore(score, btn) {
+  _selectedScore = score;
+  document.querySelectorAll('.dscore-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+
+function saveDarScore() {
+  if (!_darTarget) return;
+  if (_selectedScore === null) {
+    const sel = document.querySelector('.dscore-btn.sel');
+    if (!sel) { showToast('Please select a score (1–7)'); return; }
+    _selectedScore = parseInt(sel.textContent,10);
+  }
+  const score     = _selectedScore;   // capture before closeDarScore() nulls it
+  const comment   = document.getElementById('dar-score-comment').value.trim();
+  const dateLabel = (document.getElementById('dar-score-date')?.value||'').trim();
+  const rowIdx    = _darRowIdx;
+  setMemberScore(_darMember, _darTarget, score, comment, rowIdx, dateLabel);
+  closeDarScore();
+  renderDarTable();
+  const col = SCORE_COLORS[score];
+  showToast('Saved: '+score+'/7 — '+(col ? col.label : ''));
+}
+
+function closeDarScore() {
+  document.getElementById('dar-score-wrap').classList.remove('open');
+  _darTarget     = null;
+  _darMember     = null;
+  _selectedScore = null;
+  _darRowIdx     = 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   HISTORY
+══════════════════════════════════════════════════════════════════ */
+function renderHistory() {
+  const c = document.getElementById('hist-list');
+  if (!S.history.length) {
+    c.innerHTML=`<div class="empty-state fu">
+      <div class="empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text-faint)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+      <div class="empty-title">No sessions yet</div>
+      <div class="empty-sub">Complete today's tasks to start your history</div>
+    </div>`; return;
+  }
+  c.innerHTML = S.history.map((s,i)=>{
+    const pills = s.tasks.map(t=>{
+      const m=TASK_META[t.id]||{};
+      return `<span class="hist-pill" style="background:${m.fill}">${m.en}</span>`;
+    }).join('');
+    const taskRows = s.tasks.map(t=>{
+      const m=TASK_META[t.id]||{};
+      let sub='';
+      let scoreBadge = '';
+
+      if (t.id==='sabaq') {
+        sub=`${t.surah||'—'}, verse ${t.verse||'—'}`;
+        // Add Sabaq score badge if available
+        if (s.sabaqScore) {
+          const col = SCORE_COLORS[s.sabaqScore];
+          scoreBadge = `&nbsp;<span style="display:inline-flex;align-items:center;justify-content:center;
+              width:22px;height:22px;border-radius:5px;font-size:12px;font-weight:800;
+              background:${col.bg};color:${col.text};vertical-align:middle">${s.sabaqScore}</span>`;
+        }
+      }
+      if (t.id==='sabaq-para') {
+        sub=t.startPage?`Pages ${t.startPage}–${Math.min(+t.startPage+9,604)}`:'—';
+        // Add Sabaq Para score badge if available
+        if (s.sabaqParaScore) {
+          const col = SCORE_COLORS[s.sabaqParaScore];
+          scoreBadge = `&nbsp;<span style="display:inline-flex;align-items:center;justify-content:center;
+              width:22px;height:22px;border-radius:5px;font-size:12px;font-weight:800;
+              background:${col.bg};color:${col.text};vertical-align:middle">${s.sabaqParaScore}</span>`;
+        }
+      }
+      if (t.id==='dawr') {
+        // Show each Dawr quarter with its score from S.darLog
+        sub = (t.entries||[]).map(e=>{
+          const qLabel = QTR_LABELS[QTR_KEYS.indexOf(e.quarter)] || e.quarter;
+          const key    = `J${e.juz}Q${e.quarter}`;
+          const sc     = S.darLog[key]?.score;
+          const col    = sc ? SCORE_COLORS[sc] : null;
+          const badge  = sc
+            ? `<span style="display:inline-flex;align-items:center;justify-content:center;
+                width:18px;height:18px;border-radius:4px;font-size:10px;font-weight:800;
+                background:${col.bg};color:${col.text};margin-left:4px;vertical-align:middle">${sc}</span>`
+            : '';
+          return `Juz ${e.juz} ${qLabel}${badge}`;
+        }).join(', ');
+      }
+
+      return `<div class="hist-task">
+        <div class="hist-task-dot" style="background:${m.color}"></div>
+        <div style="flex:1">
+          <div class="hist-task-name" style="display:flex;align-items:center;gap:0">${m.en}${scoreBadge}</div>
+          <div class="hist-task-sub">${sub||'—'}</div>
+        </div>
+      </div>`;
+    }).join('');
+    // Session-level Tajwid/Adab/Comments (shown once per session, not per task)
+    const sessionScores = [
+      s.sabaqScore     ? `Sabaq: <strong>${s.sabaqScore}/7</strong>`       : '',
+      s.sabaqParaScore ? `Sabaq Para: <strong>${s.sabaqParaScore}/7</strong>` : '',
+      s.tajwid         ? `Tajweed: <strong>${s.tajwid}/7</strong>`         : '',
+      s.adab           ? `Adab: <strong>${s.adab}/7</strong>`              : '',
+      s.sessionComment ? `"${escHtml(s.sessionComment)}"`                  : ''
+    ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+    return `<div class="hist-row fu" style="animation-delay:${i*.04}s">
+      <div class="hist-row-hd" onclick="this.nextElementSibling.classList.toggle('open')">
+        <div><div class="hist-date">${s.dateLabel}</div><div class="hist-day">${s.dayLabel}</div></div>
+        <div class="hist-pills">${pills}</div>
+      </div>
+      <div class="hist-exp"><div class="hist-exp-inner">
+        ${taskRows}
+        ${sessionScores?`<div class="hist-task-extra" style="padding:6px 8px;font-size:11px;color:var(--c-text-muted)">${sessionScores}</div>`:''}
+      </div></div>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PROFILE
+══════════════════════════════════════════════════════════════════ */
+function applyProfile() {
+  document.getElementById('prof-name').value = S.profile.name||'';
+  // Update role display (read-only, role set at login)
+  const roleDisp = document.getElementById('prof-role-display');
+  if (roleDisp) roleDisp.textContent = S.profile.role || 'student';
+  updateThemeLbl();
+  // Class info — show all joined classes
+  const codes = S.profile.classCodes || (S.profile.classCode ? [S.profile.classCode] : []);
+  // Class Sync card visible whenever user is in at least one class
+  const syncCard = document.getElementById('prof-sync-card');
+  if (syncCard) syncCard.style.display = codes.length ? '' : 'none';
+  const row   = document.getElementById('prof-class-row');
+  if (row) {
+    row.style.display = codes.length ? '' : 'none';
+    const codeEl = document.getElementById('prof-class-code');
+    if (codeEl) codeEl.textContent = codes.join(', ');
+    const mEl = document.getElementById('prof-class-members');
+    if (mEl && codes.length) {
+      const all = loadClasses();
+      let ts = 0, us = 0;
+      codes.forEach(c => {
+        const members = all[c] ? Object.values(all[c].members) : [];
+        ts += members.filter(m=>m.role==='student').length;
+        us += members.filter(m=>m.role==='ustadh').length;
+      });
+      mEl.textContent = `${ts} student${ts!==1?'s':''}, ${us} Ustadh${us!==1?'s':''}`;
+    }
+  }
+}
+
+function copyProfileCode() {
+  const code = S.profile.classCode;
+  if (!code) return;
+  navigator.clipboard?.writeText(code).then(()=>showToast('Code copied!')).catch(()=>showToast('Code: '+code));
+}
+function saveProf() {
+  S.profile.name = document.getElementById('prof-name').value;
+  save();
+}
+function setRole(r, persist=true) {
+  S.profile.role = r;
+  if (persist) { save(); applyRoleUI(); renderDarTable(); }
+}
+function updateStats() {
+  // Stats section removed from profile per design update
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   THEME
+══════════════════════════════════════════════════════════════════ */
+function toggleTheme() {
+  const cur  = document.documentElement.getAttribute('data-theme')||'light';
+  const next = cur==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('hifz-theme', next);
+  updateThemeLbl();
+}
+function updateThemeLbl() {
+  const dark = document.documentElement.getAttribute('data-theme')==='dark';
+  const el = document.getElementById('theme-lbl');
+  if (el) el.textContent = dark?'Dark Mode':'Light Mode';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════════════════ */
+let _tt;
+function showToast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),3200);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════════════════════ */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CLASS MANAGEMENT
+══════════════════════════════════════════════════════════════════ */
+const CLASSES_KEY = 'hifz-classes';
+
+function loadClasses() {
+  try { return JSON.parse(localStorage.getItem(CLASSES_KEY)||'{}'); } catch(e){ return {}; }
+}
+function saveClasses(obj) {
+  try { localStorage.setItem(CLASSES_KEY, JSON.stringify(obj)); } catch(e){}
+}
+
+function generateClassCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const classes = loadClasses();
+  let code;
+  do { code = Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join(''); }
+  while (classes[code]);
+  return code;
+}
+
+let _pendingClassCodes = [];   // array — supports multiple classes
+
+function onCreateClass() {
+  const code = generateClassCode();
+  const classes = loadClasses();
+  classes[code] = {
+    code,
+    createdBy: _pendingName,
+    createdAt: Date.now(),
+    members: {
+      [_pendingName]: { name:_pendingName, role:'ustadh', darLog:{}, history:[] }
+    }
+  };
+  saveClasses(classes);
+  _pendingClassCodes.push(code);
+  document.getElementById('lo-class-create-form').style.display = 'none';
+  document.getElementById('lo-class-code-display').style.display = 'block';
+  document.getElementById('lo-display-code').textContent = code;
+  updateJoinedCodesList();
+}
+
+function resetClassForm() {
+  const cf = document.getElementById('lo-class-create-form');
+  const cd = document.getElementById('lo-class-code-display');
+  if (cf) cf.style.display = 'block';
+  if (cd) cd.style.display = 'none';
+  const ui = document.getElementById('lo-ustadh-code');
+  const si = document.getElementById('lo-student-code');
+  if (ui) ui.value = '';
+  if (si) { si.value = ''; document.getElementById('lo-student-join-btn').disabled=true; }
+}
+
+function updateJoinedCodesList() {
+  const list = document.getElementById('lo-joined-list');
+  const codesEl = document.getElementById('lo-joined-codes');
+  const contBtn = document.getElementById('lo-class-continue-btn');
+  if (!list || !codesEl) return;
+  if (_pendingClassCodes.length) {
+    list.style.display = 'block';
+    codesEl.innerHTML = _pendingClassCodes.map(c =>
+      `<span style="background:var(--c-gold-bg);border:1px solid rgba(184,134,42,.3);color:var(--c-gold);
+        font-size:11px;font-weight:700;letter-spacing:.1em;padding:3px 10px;border-radius:20px">${c} ✓</span>`
+    ).join('');
+    if (contBtn) contBtn.style.display = 'block';
+  } else {
+    list.style.display = 'none';
+    if (contBtn) contBtn.style.display = 'none';
+  }
+}
+
+function copyClassCode() {
+  const code = document.getElementById('lo-display-code').textContent;
+  navigator.clipboard?.writeText(code)
+    .then(()=>showToast('✓ Code copied!'))
+    .catch(()=>showToast('Code: '+code));
+}
+
+function onJoinClass(inputId) {
+  const input = document.getElementById(inputId);
+  const code  = (input?.value||'').trim().toUpperCase();
+  if (code.length !== 6) { showToast('Enter a 6-character code'); return; }
+
+  const classes = loadClasses();
+
+  // If class doesn't exist locally (different device), create a placeholder
+  if (!classes[code]) {
+    classes[code] = {
+      code,
+      createdBy: 'Ustadh',   // will be filled when Ustadh syncs
+      createdAt: Date.now(),
+      members: {}
+    };
+  }
+
+  if (_pendingClassCodes.includes(code)) { showToast('Already joined '+code); return; }
+
+  // Add member if not already in
+  if (!classes[code].members[_pendingName]) {
+    classes[code].members[_pendingName] = {
+      name: _pendingName, role: _pendingRole, darLog:{}, history:[]
+    };
+  }
+  saveClasses(classes);
+
+  _pendingClassCodes.push(code);
+  showToast('Joined class '+code+' ✓');
+  if (input) input.value = '';
+  resetClassForm();
+  updateJoinedCodesList();
+}
+
+function onClassContinue() {
+  const auth = loadAuthData();
+  if (!auth.tourDone) {
+    showLoScreen('lo-tour');
+    updateTourSlide(0);
+  } else {
+    completeLogin();
+  }
+}
+
+function onClassSkip() {
+  _pendingClassCodes = [];
+  onClassContinue();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CLASS SYNC — export / import / merge (cross-device, no backend)
+══════════════════════════════════════════════════════════════════ */
+const SYNC_PREFIX = 'HIFZ1:';
+
+/* Encode the user's classes (with all members) into a shareable code */
+function buildClassExport() {
+  const codes = S.profile.classCodes || (S.profile.classCode ? [S.profile.classCode] : []);
+  const allClasses = loadClasses();
+  const payload = { classes:{}, by:S.profile.name, ts:Date.now() };
+  for (const code of codes) {
+    if (allClasses[code]) payload.classes[code] = allClasses[code];
+  }
+  try {
+    const json = JSON.stringify(payload);
+    return SYNC_PREFIX + btoa(unescape(encodeURIComponent(json)));
+  } catch(e) { return ''; }
+}
+
+/* Decode a shared code back into a payload object (or null) */
+function parseClassImport(raw) {
+  let code = (raw||'').trim();
+  if (!code) return null;
+  if (code.startsWith(SYNC_PREFIX)) code = code.slice(SYNC_PREFIX.length);
+  try {
+    const json = decodeURIComponent(escape(atob(code)));
+    const obj = JSON.parse(json);
+    if (!obj || typeof obj.classes !== 'object') return null;
+    return obj;
+  } catch(e) { return null; }
+}
+
+/* Deep-merge incoming class data into local storage without losing data */
+function mergeClassData(incoming) {
+  if (!incoming?.classes) return { added:0, merged:0 };
+  const local = loadClasses();
+  let added = 0, merged = 0;
+
+  for (const [code, inClass] of Object.entries(incoming.classes)) {
+    if (!local[code]) {
+      local[code] = inClass;               // brand-new class → take whole
+      added++;
+      continue;
+    }
+    merged++;
+    const lc = local[code];
+    // Prefer a real creator name over the "Ustadh" placeholder
+    if ((!lc.createdBy || lc.createdBy === 'Ustadh') && inClass.createdBy) lc.createdBy = inClass.createdBy;
+    lc.members = lc.members || {};
+
+    for (const [mname, inM] of Object.entries(inClass.members || {})) {
+      const localM = lc.members[mname];
+      if (!localM) { lc.members[mname] = inM; continue; }   // missing member → add
+
+      // Member exists on both sides → merge field by field (never wipe data)
+      // darLog: take incoming per-key only when it carries a score
+      localM.darLog = localM.darLog || {};
+      for (const [k, e] of Object.entries(inM.darLog || {})) {
+        if (!localM.darLog[k]) { localM.darLog[k] = e; continue; }
+        if (e && e.score != null) localM.darLog[k].score = e.score;
+        if (e && e.comment) localM.darLog[k].comment = e.comment;
+        if (e && e.dateLabel && !localM.darLog[k].dateLabel) localM.darLog[k].dateLabel = e.dateLabel;
+      }
+      // history: union by session id (keep richest)
+      const localHist = localM.history || [];
+      const inHist    = inM.history || [];
+      if (inHist.length) {
+        const byId = {};
+        [...localHist, ...inHist].forEach(s => {
+          const id = s.id || (s.dateLabel + '|' + (s.dayLabel||''));
+          // Prefer the version with more scored fields
+          const score = (x)=>['sabaqScore','sabaqParaScore','tajwid','adab'].filter(f=>x&&x[f]!=null).length;
+          if (!byId[id] || score(s) >= score(byId[id])) byId[id] = s;
+        });
+        localM.history = Object.values(byId).sort((a,b)=>(b.id||0)-(a.id||0));
+      }
+      // darRowSets: keep the longer array
+      if ((inM.darRowSets||[]).length > (localM.darRowSets||[]).length) localM.darRowSets = inM.darRowSets;
+    }
+  }
+  saveClasses(local);
+  return { added, merged };
+}
+
+/* ── Sync sheet UI ── */
+function openSyncSheet() {
+  const sheet = document.getElementById('sync-sheet');
+  if (!sheet) return;
+  const exportBox = document.getElementById('sync-export-box');
+  if (exportBox) exportBox.value = buildClassExport();
+  const importBox = document.getElementById('sync-import-box');
+  if (importBox) importBox.value = '';
+  const importBtn = document.getElementById('sync-import-btn');
+  if (importBtn) importBtn.disabled = true;
+  sheet.style.display = 'flex';
+}
+function closeSyncSheet() {
+  const sheet = document.getElementById('sync-sheet');
+  if (sheet) sheet.style.display = 'none';
+}
+function copyExportCode() {
+  const box = document.getElementById('sync-export-box');
+  if (!box || !box.value) { showToast('No class to share yet'); return; }
+  const txt = box.value;
+  navigator.clipboard?.writeText(txt)
+    .then(()=>showToast('✓ Code copied — send it to the other account'))
+    .catch(()=>{ box.select(); showToast('Select all & copy manually'); });
+}
+function doImportSync() {
+  const box = document.getElementById('sync-import-box');
+  const payload = parseClassImport(box?.value);
+  if (!payload) { showToast('That code is not valid'); return; }
+  const { added, merged } = mergeClassData(payload);
+  // Re-merge into local view + refresh everything
+  mergeClassScores();
+  renderClassList();
+  if (_activeClassCode) refreshClassDetail();
+  closeSyncSheet();
+  showToast(`✓ Synced — ${added} added, ${merged} updated`);
+}
+
+/* Sync current user's data into ALL their class member slots */
+function syncToClass() {
+  const codes = S.profile.classCodes || [];
+  if (!codes.length) return;
+  const classes = loadClasses();
+  const mname = S.profile.name;
+  for (const code of codes) {
+    if (!classes[code]) continue;
+    if (!classes[code].members[mname]) {
+      classes[code].members[mname] = { name:mname, role:S.profile.role, darLog:{}, history:[], darRowSets:[] };
+    }
+    const member = classes[code].members[mname];
+    // Archive any completed cycles into darRowSets before overwriting darLog
+    if (S._cycleCompletedKeys?.length) {
+      if (!member.darRowSets) member.darRowSets = [];
+      S._cycleCompletedKeys.forEach(({ key, entry }) => {
+        // Find or create a row set that already has this key (or create new)
+        let placed = false;
+        for (const rs of member.darRowSets) {
+          if (!rs[key]) { rs[key] = entry; placed = true; break; }
+        }
+        if (!placed) {
+          const newSet = {}; newSet[key] = entry;
+          member.darRowSets.push(newSet);
+        }
+      });
+    }
+    member.darLog  = JSON.parse(JSON.stringify(S.darLog));
+    member.history = JSON.parse(JSON.stringify(S.history));
+  }
+  saveClasses(classes);
+  S._cycleCompletedKeys = [];  // clear after sync
+}
+
+/* Get all members of a specific class (sorted: students first) */
+function getClassMembers(code) {
+  if (!code) return null;
+  const classes = loadClasses();
+  const cls = classes[code];
+  if (!cls) return null;
+  return Object.values(cls.members)
+    .sort((a,b) => {
+      if (a.role !== b.role) return a.role==='student'?-1:1;
+      return a.name.localeCompare(b.name);
+    });
+}
+
+/* Read one member's DAR entry from class storage */
+function getMemberDarEntry(memberName, key) {
+  if (!memberName || memberName===S.profile.name) return S.darLog[key];
+  const code = _activeClassCode || S.profile.classCode;
+  if (!code) return null;
+  const classes = loadClasses();
+  return classes[code]?.members[memberName]?.darLog?.[key] || null;
+}
+
+/* Write score/comment to a member's DAR entry (rowIdx 0=darLog, 1+=darRowSets) */
+function setMemberScore(memberName, key, score, comment, rowIdx=0, dateLabel='') {
+  if (!memberName || memberName===S.profile.name) {
+    // Own data (student)
+    if (rowIdx === 0) {
+      if (S.darLog[key]) { S.darLog[key].score=score; S.darLog[key].comment=comment; save(); }
+    }
+    return;
+  }
+  const code = _activeClassCode || S.profile.classCode;
+  if (!code) return;
+  const classes = loadClasses();
+  const member  = classes[code]?.members?.[memberName];
+  if (!member) return;
+
+  if (rowIdx === 0) {
+    // Auto row — update existing darLog entry
+    const entry = member.darLog?.[key];
+    if (entry) { entry.score=score; entry.comment=comment; }
+  } else {
+    // Manual row — update or create in darRowSets
+    if (!member.darRowSets) member.darRowSets = [];
+    while (member.darRowSets.length < rowIdx) member.darRowSets.push({});
+    const rowSet = member.darRowSets[rowIdx-1];
+    if (!rowSet[key]) rowSet[key] = {};
+    rowSet[key].score    = score;
+    rowSet[key].comment  = comment;
+    if (dateLabel) rowSet[key].dateLabel = dateLabel;
+  }
+  saveClasses(classes);
+
+  // Refresh student detail Dawr Log if open
+  if (_currentStdName === memberName) {
+    const darPane = document.getElementById('std-pane-darlog');
+    if (darPane?.classList.contains('active')) renderStudentDarLogTab(memberName);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MY CLASSES LIST (Today view — shared Ustadh + Student)
+══════════════════════════════════════════════════════════════════ */
+function renderClassList() {
+  const el = document.getElementById('classes-list');
+  if (!el) return;
+  const codes   = S.profile.classCodes || (S.profile.classCode ? [S.profile.classCode] : []);
+  const classes = loadClasses();
+
+  if (!codes.length) {
+    el.innerHTML = `<div class="empty-state fu">
+      <div class="empty-title">No classes yet</div>
+      <div class="empty-sub">Tap "+ Join Another Class" to get started</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = codes.map((code,i) => {
+    const cls = classes[code];
+    if (!cls) return ''; // stale code
+    const members  = Object.values(cls.members||{});
+    const students = members.filter(m=>m.role==='student').length;
+    const ustadhs  = members.filter(m=>m.role==='ustadh').length;
+    // Ustadh sees student count; Student sees who their Ustadh is
+    const ustadNames = members.filter(m=>m.role==='ustadh').map(m=>m.name).join(', ') || '—';
+    const meta = S.profile.role === 'ustadh'
+      ? `${students} student${students!==1?'s':''}`
+      : `Ustadh: ${escHtml(ustadNames)}`;
+    return `<div class="class-detail-card fu" style="animation-delay:${i*.05}s"
+        data-code="${code}" onclick="openClassDetail(this.dataset.code)">
+      <div class="class-card-icon">${code.slice(0,3)}<br style="line-height:.6">${code.slice(3)}</div>
+      <div class="class-card-info">
+        <div class="class-card-code">${code}</div>
+        <div class="class-card-meta">${meta}</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-text-faint)"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CLASS DETAIL OVERLAY
+══════════════════════════════════════════════════════════════════ */
+function openClassDetail(code) {
+  _activeClassCode = code;
+  const classes   = loadClasses();
+  const cls       = classes[code];
+  document.getElementById('cls-detail-title').textContent = `Class ${code}`;
+  document.getElementById('cls-detail-badge').textContent = S.profile.name || '';
+  document.getElementById('class-detail').style.display = 'flex';
+
+  const isUstadh = S.profile.role === 'ustadh';
+  const rosterWrap = document.getElementById('cls-roster-wrap');
+  const studentWrap = document.getElementById('cls-student-wrap');
+  rosterWrap.style.display  = isUstadh ? 'block' : 'none';
+  studentWrap.style.display = isUstadh ? 'none'  : 'flex';
+
+  if (isUstadh) {
+    renderClassRoster(code);
+  } else {
+    // Show Ustadh info above the tabs
+    const ustadSection = document.getElementById('cls-ustadh-info');
+    if (ustadSection) ustadSection.innerHTML = renderClassUstadhs(code);
+    // Reset to tasks tab
+    document.querySelectorAll('.std-tab-btn[data-tab^="cls-"]').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('#cls-student-wrap .std-tab-pane').forEach(p=>p.classList.remove('active'));
+    const tb = document.querySelector('.std-tab-btn[data-tab="cls-tasks"]');
+    const pn = document.getElementById('cls-pane-tasks');
+    if (tb) tb.classList.add('active');
+    if (pn) pn.classList.add('active');
+    renderMyTasks(code);
+  }
+}
+
+function closeClassDetail() {
+  document.getElementById('class-detail').style.display = 'none';
+  _activeClassCode = null;
+}
+
+/* ── Refresh class detail (pull fresh data from localStorage) ──── */
+function refreshClassDetail() {
+  if (!_activeClassCode) return;
+  const btn = document.getElementById('cls-refresh-btn');
+  if (btn) {
+    btn.style.opacity = '0.5';
+    btn.style.pointerEvents = 'none';
+  }
+  // Force reload from localStorage — merge fresh class data
+  mergeClassScores();
+  const code = _activeClassCode;
+  const isUstadh = S.profile.role === 'ustadh';
+  if (isUstadh) {
+    renderClassRoster(code);
+  } else {
+    const ustadSection = document.getElementById('cls-ustadh-info');
+    if (ustadSection) ustadSection.innerHTML = renderClassUstadhs(code);
+    // Re-render active tab
+    const activeTab = document.querySelector('.std-tab-btn[data-tab^="cls-"].active')?.dataset.tab;
+    if (activeTab === 'cls-tasks') renderMyTasks(code);
+    else if (activeTab === 'cls-darlog') renderMyDarLog(code);
+    else if (activeTab === 'cls-history') renderStudentHistoryTab(_currentStdName);
+  }
+  if (btn) {
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto';
+  }
+  showToast('✓ Data refreshed');
+}
+
+function switchClsTab(tab, btn) {
+  document.querySelectorAll('.std-tab-btn[data-tab^="cls-"]').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#cls-student-wrap .std-tab-pane').forEach(p=>p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const pane = document.getElementById('cls-pane-'+tab.replace('cls-',''));
+  if (pane) pane.classList.add('active');
+  const code = _activeClassCode;
+  if (tab === 'cls-tasks')  renderMyTasks(code);
+  if (tab === 'cls-darlog') renderMyDarLog(code);
+}
+
+/* ── Ustadh: render STUDENTS ONLY inside class detail ───────────── */
+function renderClassRoster(code) {
+  const el  = document.getElementById('cls-ustadh-roster');
+  const cnt = document.getElementById('cls-roster-count');
+  if (!el) return;
+  const all      = getClassMembers(code) || [];
+  const students = all.filter(m => m.role === 'student');
+
+  if (cnt) cnt.textContent = students.length
+    ? `${students.length} student${students.length!==1?'s':''}`
+    : '';
+
+  if (!students.length) {
+    el.innerHTML = `<div class="empty-state fu">
+      <div class="empty-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text-faint)" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+        </svg>
+      </div>
+      <div class="empty-title">No students yet</div>
+      <div class="empty-sub">Share code <strong>${escHtml(code)}</strong> with your students</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = students.map((m,i) => {
+    const parts    = m.name.trim().split(/\s+/);
+    const initials = parts.length>=2 ? (parts[0][0]+parts[parts.length-1][0]).toUpperCase() : m.name.slice(0,2).toUpperCase();
+    const latest   = m.history?.[0];
+    const status   = latest ? `Last active: ${latest.dateLabel}` : 'No activity yet';
+    return `<div class="roster-card fu" style="animation-delay:${i*.05}s"
+        data-member="${escHtml(m.name)}" onclick="openStudentDetail(this.dataset.member)">
+      <div class="roster-avatar">${escHtml(initials)}</div>
+      <div class="roster-info">
+        <div class="roster-name">${escHtml(m.name)}</div>
+        <div class="roster-status">${escHtml(status)}</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>`;
+  }).join('');
+}
+
+/* ── Student: render Ustadh(s) info at top of class detail ────────── */
+function renderClassUstadhs(code) {
+  const all     = getClassMembers(code) || [];
+  const ustadhs = all.filter(m => m.role === 'ustadh');
+  if (!ustadhs.length) return '';
+  return `<div style="padding:12px 14px 0">
+    <div style="font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+      color:var(--c-text-muted);margin-bottom:8px">Your Ustadh${ustadhs.length>1?'s':''}</div>
+    ${ustadhs.map(u => {
+      const parts    = u.name.trim().split(/\s+/);
+      const initials = parts.length>=2 ? (parts[0][0]+parts[parts.length-1][0]).toUpperCase() : u.name.slice(0,2).toUpperCase();
+      return `<div style="display:flex;align-items:center;gap:10px;background:var(--c-gold-bg);
+          border:1px solid rgba(184,134,42,.25);border-radius:12px;padding:10px 12px;margin-bottom:6px">
+        <div style="width:38px;height:38px;border-radius:50%;background:var(--c-gold-bg);
+          border:1.5px solid var(--c-gold);display:flex;align-items:center;justify-content:center;
+          font-weight:700;font-size:13px;color:var(--c-gold);flex-shrink:0">${escHtml(initials)}</div>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--c-text)">${escHtml(u.name)}</div>
+          <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+            color:var(--c-gold);margin-top:1px">Ustadh</div>
+        </div>
+      </div>`;
+    }).join('')}
+    <div style="height:1px;background:var(--c-border);margin:10px 0 4px"></div>
+  </div>`;
+}
+
+/* ── Student: My Tasks (own submitted tasks, read-only) ─────────── */
+function renderMyTasks(code) {
+  const pane = document.getElementById('cls-pane-tasks');
+  if (!pane) return;
+  const classes = loadClasses();
+  const me = classes[code]?.members?.[S.profile.name] || { history: S.history };
+  const sessions = me.history || [];
+
+  if (!sessions.length) {
+    pane.innerHTML = `<div class="empty-state fu">
+      <div class="empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text-faint)" stroke-width="1.5">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg></div>
+      <div class="empty-title">No sessions yet</div>
+      <div class="empty-sub">Submit today's tasks to see them here</div>
+    </div>`;
+    return;
+  }
+
+  pane.innerHTML = `<div style="padding:10px 14px">` + sessions.map((s,i) => {
+    const pills = (s.tasks||[]).map(t=>{const m=TASK_META[t.id]||{};return `<span class="hist-pill" style="background:${m.fill}">${m.en}</span>`;}).join('');
+    const taskRows = (s.tasks||[]).map(t=>{
+      const m=TASK_META[t.id]||{};
+      let sub='';
+      if (t.id==='sabaq') sub=`${t.surah||'—'}, verse ${t.verse||'—'}`;
+      if (t.id==='sabaq-para') sub=t.startPage?`Pages ${t.startPage}–${Math.min(+t.startPage+9,604)}`:'—';
+      if (t.id==='dawr') sub=(t.entries||[]).map(e=>`Juz ${e.juz} ${QTR_LABELS[QTR_KEYS.indexOf(e.quarter)]||''}`).join(', ');
+      return `<div class="hist-task">
+        <div class="hist-task-dot" style="background:${m.color}"></div>
+        <div><div class="hist-task-name">${m.en}</div><div class="hist-task-sub">${escHtml(sub||'—')}</div></div>
+      </div>`;
+    }).join('');
+    const extras=[
+      s.tajwid ? `Tajwid: ${s.tajwid}/7` : '',
+      s.adab   ? `Adab: ${s.adab}/7`     : '',
+      s.sessionComment ? `"${s.sessionComment}"` : ''
+    ].filter(Boolean).join(' · ');
+    return `<div class="hist-row fu" style="animation-delay:${i*.04}s">
+      <div class="hist-row-hd" onclick="this.nextElementSibling.classList.toggle('open')">
+        <div><div class="hist-date">${s.dateLabel}</div><div class="hist-day">${s.dayLabel}</div></div>
+        <div class="hist-pills">${pills}</div>
+      </div>
+      <div class="hist-exp"><div class="hist-exp-inner">
+        ${taskRows}
+        ${extras?`<div class="hist-task-extra">${escHtml(extras)}</div>`:''}
+      </div></div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+/* ── Student: My Dawr Log (read-only) ───────────────────────────── */
+function renderMyDarLog(code) {
+  const pane = document.getElementById('cls-pane-darlog');
+  if (!pane) return;
+  const classes = loadClasses();
+  const me = classes[code]?.members?.[S.profile.name] || { darLog: S.darLog };
+  // Reuse the student detail Dawr Log renderer using _currentStdName trick
+  const prev = _currentStdName;
+  const prevCode = _activeClassCode;
+  _currentStdName  = S.profile.name;
+  _activeClassCode = code;
+  // Temporarily redirect render to cls-pane-darlog
+  const origPane = document.getElementById('std-pane-darlog');
+  const temp = document.createElement('div');
+  temp.id = 'std-pane-darlog';
+  temp.className = 'std-tab-pane active';
+  origPane?.replaceWith(temp);
+  renderStudentDarLogTab(S.profile.name);
+  pane.innerHTML = temp.innerHTML;
+  temp.replaceWith(origPane || temp);
+  _currentStdName  = prev;
+  _activeClassCode = prevCode;
+}
+
+/* ── In-app Join Class ──────────────────────────────────────────── */
+function openJoinClassSheet() {
+  const sh = document.getElementById('join-class-sheet');
+  if (sh) { sh.style.display='flex'; document.getElementById('in-app-join-code').value=''; document.getElementById('in-app-join-btn').disabled=true; }
+}
+function closeJoinClassSheet() {
+  const sh = document.getElementById('join-class-sheet');
+  if (sh) sh.style.display='none';
+}
+function inAppJoinClass() {
+  const input = document.getElementById('in-app-join-code');
+  const code  = (input?.value||'').trim().toUpperCase();
+  if (code.length !== 6) { showToast('Enter a 6-character code'); return; }
+  const classes = loadClasses();
+
+  // Create placeholder if class doesn't exist locally (different device)
+  if (!classes[code]) {
+    classes[code] = {
+      code,
+      createdBy: 'Ustadh',
+      createdAt: Date.now(),
+      members: {}
+    };
+  }
+
+  const existing = S.profile.classCodes || [];
+  if (existing.includes(code)) { showToast('Already in class '+code); closeJoinClassSheet(); return; }
+  // Add to class
+  if (!classes[code].members[S.profile.name]) {
+    classes[code].members[S.profile.name] = {
+      name:S.profile.name, role:S.profile.role, darLog:{}, history:[]
+    };
+    saveClasses(classes);
+  }
+  // Update profile
+  S.profile.classCodes = [...existing, code];
+  S.profile.classCode  = S.profile.classCodes[0];
+  save();
+  // Update auth
+  const auth = loadAuthData();
+  auth.classCodes = S.profile.classCodes;
+  saveAuthData(auth);
+  showToast('Joined class '+code+' ✓');
+  closeJoinClassSheet();
+  renderClassList();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   USTADH ROSTER (Today-view fallback — shows ALL members)
+══════════════════════════════════════════════════════════════════ */
+function renderUstadhRoster() {
+  const el    = document.getElementById('ustadh-roster');
+  const cntEl = document.getElementById('roster-count');
+  if (!el) return;
+
+  const code     = _activeClassCode || S.profile.classCode;
+  const all      = getClassMembers(code) || [];
+  const students = all.filter(m => m.role === 'student');
+
+  if (cntEl) cntEl.textContent = students.length
+    ? `${students.length} student${students.length!==1?'s':''}`
+    : '';
+
+  if (!students.length) {
+    el.innerHTML = `<div class="empty-state fu">
+      <div class="empty-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text-faint)" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+        </svg>
+      </div>
+      <div class="empty-title">No students yet</div>
+      <div class="empty-sub">Share class code <strong>${escHtml(code||'—')}</strong></div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = students.map((m,i) => {
+    const parts    = m.name.trim().split(/\s+/);
+    const initials = parts.length>=2 ? (parts[0][0]+parts[parts.length-1][0]).toUpperCase() : m.name.slice(0,2).toUpperCase();
+    const latest   = m.history?.[0];
+    const status   = latest ? `Last active: ${latest.dateLabel}` : 'No activity yet';
+    return `<div class="roster-card fu" style="animation-delay:${i*.05}s"
+        data-member="${escHtml(m.name)}" onclick="openStudentDetail(this.dataset.member)">
+      <div class="roster-avatar">${escHtml(initials)}</div>
+      <div class="roster-info">
+        <div class="roster-name">${escHtml(m.name)}</div>
+        <div class="roster-status">${escHtml(status)}</div>
+      </div>
+      <svg class="roster-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   STUDENT DETAIL PANEL
+══════════════════════════════════════════════════════════════════ */
+let _currentStdName    = null;
+let _activeClassCode   = null;   // which class is open in class detail panel
+
+function openStudentDetail(memberName) {
+  _currentStdName = memberName;
+  document.getElementById('std-detail-name').textContent = memberName;
+  // Look up actual role from class storage
+  const roleEl = document.getElementById('std-detail-role');
+  if (roleEl) {
+    const code = _activeClassCode || S.profile.classCode;
+    const classes = loadClasses();
+    const actualRole = classes[code]?.members?.[memberName]?.role || 'student';
+    roleEl.textContent = actualRole;
+    roleEl.style.color = actualRole === 'ustadh' ? 'var(--c-gold)' : '';
+    roleEl.style.background = actualRole === 'ustadh' ? 'var(--c-gold-bg)' : '';
+    roleEl.style.borderColor = actualRole === 'ustadh' ? 'rgba(184,134,42,.3)' : '';
+  }
+  document.getElementById('student-detail').style.display = 'flex';
+  // Reset to tasks tab
+  document.querySelectorAll('.std-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.std-tab-pane').forEach(p => p.classList.remove('active'));
+  const tasksBtn  = document.querySelector('.std-tab-btn[data-tab="tasks"]');
+  const tasksPane = document.getElementById('std-pane-tasks');
+  if (tasksBtn)  tasksBtn.classList.add('active');
+  if (tasksPane) tasksPane.classList.add('active');
+  renderStudentTasksTab(memberName);
+}
+
+function closeStudentDetail() {
+  document.getElementById('student-detail').style.display = 'none';
+  _currentStdName = null;
+}
+
+function switchStdTab(tab, btn) {
+  document.querySelectorAll('.std-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.std-tab-pane').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const pane = document.getElementById('std-pane-'+tab);
+  if (pane) pane.classList.add('active');
+  if (!_currentStdName) return;
+  if (tab === 'tasks')   renderStudentTasksTab(_currentStdName);
+  if (tab === 'history') renderStudentHistoryTab(_currentStdName);
+  if (tab === 'darlog')  renderStudentDarLogTab(_currentStdName);
+}
+
+function getMemberData(memberName) {
+  const code = _activeClassCode || S.profile.classCode;
+  if (!memberName || memberName === S.profile.name) {
+    // Own data — S.darLog already has merged scores from mergeClassScores()
+    // Pull darRowSets from class storage so revision rows show correctly
+    let darRowSets = [];
+    if (code) {
+      const classes = loadClasses();
+      darRowSets = classes[code]?.members?.[memberName]?.darRowSets || [];
+    }
+    return { darLog: S.darLog, history: S.history, darRowSets };
+  }
+  if (!code) return { darLog:{}, history:[], darRowSets:[] };
+  const classes = loadClasses();
+  const data = classes[code]?.members?.[memberName] || {};
+  return { darLog:{}, history:[], darRowSets:[], ...data };
+}
+
+/* ── Today's Tasks tab — accordion per task type ────────────────── */
+function renderStudentTasksTab(memberName) {
+  const pane = document.getElementById('std-pane-tasks');
+  if (!pane) return;
+  const mData  = getMemberData(memberName);
+  const latest = mData.history?.[0];
+
+  if (!latest || !latest.tasks?.length) {
+    pane.innerHTML = `<div class="empty-state fu">
+      <div class="empty-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text-faint)" stroke-width="1.5">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+      </div>
+      <div class="empty-title">No session submitted yet</div>
+      <div class="empty-sub">${escHtml(memberName)} hasn't submitted a session</div>
+    </div>`;
+    return;
+  }
+
+  const safeId   = memberName.replace(/[^a-zA-Z0-9]/g,'_');
+  let accordions = '';
+
+  // Render tasks in order: Dawr → Sabaq → Sabaq Para
+  const ordered = ['dawr','sabaq','sabaq-para'];
+  for (const taskId of ordered) {
+    const task = latest.tasks.find(t => t.id === taskId);
+    if (!task) continue;
+
+    if (taskId === 'dawr' && task.entries?.length) {
+      let rows = '';
+      for (const entry of task.entries) {
+        const qi     = QTR_KEYS.indexOf(entry.quarter);
+        const qLabel = QTR_LABELS[qi] || entry.quarter;
+        const key    = `J${entry.juz}Q${entry.quarter}`;
+        const existing = mData.darLog[key]?.score ?? '';
+        rows += `<div class="score-task-row">
+          <div class="score-task-info">
+            <span class="score-task-label">Juz ${entry.juz} – ${qLabel}</span>
+          </div>
+          <input type="number" class="score-box" min="1" max="7" placeholder="1–7"
+            id="sc_${safeId}_${key}" data-key="${key}" data-member="${escHtml(memberName)}"
+            value="${escHtml(String(existing))}">
+        </div>`;
+      }
+      accordions += `<details class="score-accordion" open>
+        <summary>
+          <span class="score-task-dot" style="background:#FF7A1A;flex-shrink:0"></span>
+          Dawr — Full Juz Revision
+        </summary>
+        <div class="score-accordion-body"><div class="score-tasks-list">${rows}</div></div>
+      </details>`;
+
+    } else if (taskId === 'sabaq') {
+      accordions += `<details class="score-accordion" open>
+        <summary>
+          <span class="score-task-dot" style="background:#FFD700;flex-shrink:0"></span>
+          Sabaq — New Memorisation
+        </summary>
+        <div class="score-accordion-body">
+          <div style="font-size:11px;color:var(--c-text-muted);margin-bottom:8px">
+            ${escHtml(task.surah||'—')}, verse ${escHtml(String(task.verse||'—'))}
+          </div>
+          <div class="score-task-row">
+            <div class="score-task-info"><span class="score-task-label">Score</span></div>
+            <input type="number" class="score-box" min="1" max="7" placeholder="1–7"
+              id="sc_${safeId}_sabaq" value="${escHtml(String(latest.sabaqScore||''))}">
+          </div>
+        </div>
+      </details>`;
+
+    } else if (taskId === 'sabaq-para') {
+      accordions += `<details class="score-accordion" open>
+        <summary>
+          <span class="score-task-dot" style="background:#00D4A0;flex-shrink:0"></span>
+          Sabaq Para — 10-Page Review
+        </summary>
+        <div class="score-accordion-body">
+          <div style="font-size:11px;color:var(--c-text-muted);margin-bottom:8px">
+            ${task.startPage ? `Pages ${task.startPage}–${Math.min(+task.startPage+9,604)}` : '—'}
+          </div>
+          <div class="score-task-row">
+            <div class="score-task-info"><span class="score-task-label">Score</span></div>
+            <input type="number" class="score-box" min="1" max="7" placeholder="1–7"
+              id="sc_${safeId}_sabaq_para" value="${escHtml(String(latest.sabaqParaScore||''))}">
+          </div>
+        </div>
+      </details>`;
+    }
+  }
+
+  pane.innerHTML = `<div class="score-panel">
+    <div class="score-section-title">Session: ${escHtml(latest.dateLabel)} — ${escHtml(latest.dayLabel)}</div>
+    ${accordions}
+    <div class="score-extra-section" style="margin-top:4px">
+      <div class="score-extra-row">
+        <label class="score-extra-lbl">Tajweed</label>
+        <input type="number" class="score-box" min="1" max="7" placeholder="1–7"
+          id="sc_${safeId}_tajwid" value="${escHtml(String(latest.tajwid||''))}">
+      </div>
+      <div class="score-extra-row">
+        <label class="score-extra-lbl">Adab</label>
+        <input type="number" class="score-box" min="1" max="7" placeholder="1–7"
+          id="sc_${safeId}_adab" value="${escHtml(String(latest.adab||''))}">
+      </div>
+      <div class="score-extra-row score-comments-row">
+        <label class="score-extra-lbl">Comments</label>
+        <textarea class="score-comments-box" id="sc_${safeId}_comments"
+          placeholder="Enter comments for ${escHtml(memberName)}…">${escHtml(latest.sessionComment||'')}</textarea>
+      </div>
+    </div>
+    <button class="score-save-btn" data-member="${escHtml(memberName)}"
+      onclick="saveStudentScoring(this.dataset.member)">Save Scores</button>
+  </div>`;
+}
+
+/* ── History tab ────────────────────────────────────────────────── */
+function renderStudentHistoryTab(memberName) {
+  const pane = document.getElementById('std-pane-history');
+  if (!pane) return;
+  const mData   = getMemberData(memberName);
+  const history = mData.history || [];
+
+  if (!history.length) {
+    pane.innerHTML = `<div class="empty-state fu">
+      <div class="empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text-faint)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+      <div class="empty-title">No sessions yet</div>
+    </div>`; return;
+  }
+
+  pane.innerHTML = `<div style="padding:10px 14px">` + history.map((s,i) => {
+    const pills    = (s.tasks||[]).map(t=>{const m=TASK_META[t.id]||{};return `<span class="hist-pill" style="background:${m.fill}">${m.en}</span>`;}).join('');
+    const taskRows = (s.tasks||[]).map(t=>{
+      const m=TASK_META[t.id]||{};
+      let sub='';
+      let scoreBadge = '';
+
+      if (t.id==='sabaq') {
+        sub=`${t.surah||'—'}, verse ${t.verse||'—'}`;
+        if (s.sabaqScore) {
+          const col = SCORE_COLORS[s.sabaqScore];
+          scoreBadge = `&nbsp;<span style="display:inline-flex;align-items:center;justify-content:center;
+              width:22px;height:22px;border-radius:5px;font-size:12px;font-weight:800;
+              background:${col.bg};color:${col.text};vertical-align:middle">${s.sabaqScore}</span>`;
+        }
+      }
+      if (t.id==='sabaq-para') {
+        sub=t.startPage?`Pages ${t.startPage}–${Math.min(+t.startPage+9,604)}`:'—';
+        if (s.sabaqParaScore) {
+          const col = SCORE_COLORS[s.sabaqParaScore];
+          scoreBadge = `&nbsp;<span style="display:inline-flex;align-items:center;justify-content:center;
+              width:22px;height:22px;border-radius:5px;font-size:12px;font-weight:800;
+              background:${col.bg};color:${col.text};vertical-align:middle">${s.sabaqParaScore}</span>`;
+        }
+      }
+      if (t.id==='dawr') {
+        sub=(t.entries||[]).map(e=>{
+          const qLabel = QTR_LABELS[QTR_KEYS.indexOf(e.quarter)]||'';
+          const key    = `J${e.juz}Q${e.quarter}`;
+          const sc     = mData.darLog[key]?.score;
+          const col    = sc ? SCORE_COLORS[sc] : null;
+          const badge  = sc
+            ? `<span style="display:inline-flex;align-items:center;justify-content:center;
+                width:16px;height:16px;border-radius:3px;font-size:9px;font-weight:800;
+                background:${col.bg};color:${col.text};margin-left:3px;vertical-align:middle">${sc}</span>`
+            : '';
+          return `Juz ${e.juz} ${qLabel}${badge}`;
+        }).join(', ');
+      }
+
+      return `<div class="hist-task">
+        <div class="hist-task-dot" style="background:${m.color}"></div>
+        <div style="flex:1">
+          <div class="hist-task-name" style="display:flex;align-items:center;gap:0">${m.en}${scoreBadge}</div>
+          <div class="hist-task-sub">${t.id==='dawr' ? sub : escHtml(sub||'—')}</div>
+        </div>
+      </div>`;
+    }).join('');
+    const extras = [
+      s.tajwid         ? `Tajweed: ${s.tajwid}/7`           : '',
+      s.adab           ? `Adab: ${s.adab}/7`                : '',
+      s.sessionComment ? `"${s.sessionComment}"`             : ''
+    ].filter(Boolean).join(' · ');
+    return `<div class="hist-row fu" style="animation-delay:${i*.04}s">
+      <div class="hist-row-hd" onclick="this.nextElementSibling.classList.toggle('open')">
+        <div><div class="hist-date">${s.dateLabel}</div><div class="hist-day">${s.dayLabel}</div></div>
+        <div class="hist-pills">${pills}</div>
+      </div>
+      <div class="hist-exp"><div class="hist-exp-inner">
+        ${taskRows}
+        ${extras?`<div class="hist-task-extra">${escHtml(extras)}</div>`:''}
+      </div></div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+/* ── Dawr Log tab (multi-row-set) ────────────────────────────────── */
+function renderStudentDarLogTab(memberName) {
+  const pane = document.getElementById('std-pane-darlog');
+  if (!pane) return;
+  const mData     = getMemberData(memberName);
+  const darLog    = mData.darLog    || {};
+  const rowSets   = mData.darRowSets || [];   // additional manually-added rows
+  const isUstadh  = S.profile.role === 'ustadh';
+
+  /* ── Header row — alternate green/blue per juz, "Juz N – Q1" labels, vertical text ── */
+  let head = `<thead><tr><th class="row-hd" style="background:#E8E8E8;color:#333;font-size:8px;font-weight:700;min-width:72px;vertical-align:bottom;border:1px solid #C4C4C4">Row</th>`;
+  for (let j=1;j<=30;j++) {
+    const c = juzHdColor(j);
+    for (let qi=0;qi<4;qi++) {
+      const jBrd = qi===0 ? `border-left:2px solid ${c.border}` : '';
+      head += `<th class="dar-col-hd${qi===0?' juz-start':''}" style="background:${c.bg};color:${c.text};border:1px solid ${c.border};${jBrd}">
+        <span class="dar-col-hd-inner">Juz ${j} – Q${qi+1}</span></th>`;
+    }
+  }
+  head += '</tr></thead>';
+
+  /* ── Helper: build 2 rows (Date / Score) for one row set ── */
+  function mkRowGroup(rowLog, rowIdx) {
+    const rowLabel = rowIdx === 0 ? 'Auto' : `Row ${rowIdx}`;
+    const rowColor = rowIdx === 0 ? 'var(--c-gold)' : 'var(--c-text-muted)';
+
+    const mkTd = (inner, jS) =>
+      `<td class="dar-cell${jS?' juz-start':''}" style="${jS?'border-left:2px solid var(--c-border-soft)':''}">${inner}</td>`;
+
+    // Date row
+    let dateR  = `<tr><td class="row-hd" style="font-size:8px;font-weight:700;text-transform:uppercase;color:${rowColor};padding:3px 6px;white-space:nowrap">${rowLabel}<br><span style="font-weight:400;color:var(--c-text-muted)">Date</span></td>`;
+    // Score row
+    let scoreR = `<tr><td class="row-hd" style="font-size:8px;font-weight:700;text-transform:uppercase;color:${rowColor};padding:3px 6px;border-bottom:2px solid var(--c-border)">
+      <span style="font-weight:400;color:var(--c-text-muted)">Score /7</span></td>`;
+
+    for (let j=1;j<=30;j++) for (let qi=0;qi<4;qi++) {
+      const key = `J${j}Q${QTR_KEYS[qi]}`;
+      const e   = rowLog[key];
+      const jS  = qi===0;
+      const lbl = QTR_LABELS[qi];
+
+      // Date cell
+      dateR += mkTd(
+        e?.dateLabel
+          ? `<div class="dc-inner"><span class="dc-date" style="font-size:7px">${escHtml(e.dateLabel)}</span></div>`
+          : '',
+        jS
+      );
+
+      // Score cell
+      const sc  = e?.score != null ? parseInt(e.score,10) : null;
+      const col = sc ? SCORE_COLORS[sc] : null;
+      const bg  = col ? `background:${col.bg};color:${col.text}` : '';
+      const clickAttr = isUstadh
+        ? `data-key="${key}" data-member="${escHtml(memberName)}" data-lbl="Juz ${j} – Q${qi+1}" data-rowidx="${rowIdx}"
+           onclick="openDarScore(this.dataset.key,this.dataset.member,this.dataset.lbl,+this.dataset.rowidx)"
+           style="cursor:pointer;${bg}"`
+        : `style="${bg}"`;
+      scoreR += mkTd(
+        `<div class="dc-inner" ${clickAttr}>
+          ${sc!=null ? `<span class="dc-score">${sc}</span>` : (isUstadh ? `<span style="font-size:7px;opacity:.35">+</span>` : '')}
+        </div>`,
+        jS
+      );
+    }
+    dateR  += '</tr>';
+    scoreR += '</tr>';
+    return dateR + scoreR;   // comment row removed
+  }
+
+  /* ── Assemble all row groups ── */
+  let body = '<tbody>';
+  // Row 0: the auto-populated darLog
+  body += mkRowGroup(darLog, 0);
+  // Rows 1+: manually added
+  rowSets.forEach((rs, i) => { body += mkRowGroup(rs, i+1); });
+  body += '</tbody>';
+
+  /* ── Add Row button ── */
+  const addBtn = isUstadh
+    ? `<div style="padding:12px 14px">
+        <button onclick="addDarRevisionRow(${JSON.stringify(memberName).replace(/"/g,'&quot;')})"
+          style="width:100%;padding:10px;border-radius:10px;border:1.5px dashed var(--c-border-soft);
+            background:transparent;color:var(--c-text-muted);font-size:12px;font-weight:600;
+            cursor:pointer;font-family:inherit;transition:border-color .2s,color .2s"
+          onmouseover="this.style.borderColor='var(--c-gold)';this.style.color='var(--c-gold)'"
+          onmouseout="this.style.borderColor='var(--c-border-soft)';this.style.color='var(--c-text-muted)'">
+          + Add Revision Row
+        </button>
+      </div>`
+    : '';
+
+  pane.innerHTML = `
+    <div class="std-dar-scroll">
+      <table class="dar-table" style="font-size:10px">${head}${body}</table>
+    </div>
+    ${addBtn}`;
+}
+
+/* ── Add a new revision row to a student's Dawr Log ─────────────── */
+function addDarRevisionRow(memberName) {
+  const code = _activeClassCode || S.profile.classCode;
+  if (!code) { showToast('Not in a class'); return; }
+  const classes = loadClasses();
+  const member  = classes[code]?.members?.[memberName];
+  if (!member) return;
+  if (!member.darRowSets) member.darRowSets = [];
+  member.darRowSets.push({});   // empty row set — Ustadh fills in via score modal
+  saveClasses(classes);
+  showToast(`Row ${member.darRowSets.length} added`);
+  renderStudentDarLogTab(memberName);
+}
+
+/* ── Save scoring ────────────────────────────────────────────────── */
+function saveStudentScoring(memberName) {
+  const code = _activeClassCode || S.profile.classCode;
+  if (!code) { showToast('Not in a class'); return; }
+  const classes = loadClasses();
+  const member  = classes[code]?.members?.[memberName];
+  if (!member) { showToast('Member not found'); return; }
+
+  const safeId = memberName.replace(/[^a-zA-Z0-9]/g,'_');
+  const latest = member.history?.[0];
+
+  // Save Tajwid, Adab, Comments to latest session
+  if (latest) {
+    const tj = document.getElementById(`sc_${safeId}_tajwid`);
+    const ad = document.getElementById(`sc_${safeId}_adab`);
+    const cm = document.getElementById(`sc_${safeId}_comments`);
+    if (tj) latest.tajwid         = parseInt(tj.value,10)||null;
+    if (ad) latest.adab           = parseInt(ad.value,10)||null;
+    if (cm) latest.sessionComment = cm.value.trim();
+  }
+
+  // Save Sabaq and Sabaq Para scores to session history
+  if (latest) {
+    const sbEl = document.getElementById(`sc_${safeId}_sabaq`);
+    const spEl = document.getElementById(`sc_${safeId}_sabaq_para`);
+    if (sbEl?.value) latest.sabaqScore    = parseInt(sbEl.value,10)||null;
+    if (spEl?.value) latest.sabaqParaScore = parseInt(spEl.value,10)||null;
+  }
+
+  // Save Dawr scores from per-task key inputs
+  document.querySelectorAll(`[id^="sc_${safeId}_J"]`).forEach(input => {
+    const key   = input.dataset.key;
+    const score = parseInt(input.value,10);
+    if (key && score >= 1 && score <= 7) {
+      if (!member.darLog[key]) member.darLog[key] = {};
+      member.darLog[key].score = score;
+      if (!member.darLog[key].comment) member.darLog[key].comment = '';
+    }
+  });
+
+  saveClasses(classes);
+  showToast(`✓ Scores saved for ${memberName}`);
+
+  // Refresh Dawr Log tab if visible
+  const darPane = document.getElementById('std-pane-darlog');
+  if (darPane && darPane.classList.contains('active')) renderStudentDarLogTab(memberName);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   BOOT
+══════════════════════════════════════════════════════════════════ */
+init();
+</script>
+</body>
+</html>

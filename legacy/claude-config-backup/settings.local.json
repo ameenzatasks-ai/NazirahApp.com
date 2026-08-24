@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(pandoc \"C:\\\\Users\\\\ameen\\\\OneDrive\\\\Documents\\\\Hifz app plan..docx\" -t markdown 2>$null)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(Copy-Item \"C:\\\\Users\\\\ameen\\\\OneDrive\\\\Desktop\\\\Apps\\\\The Hifz App\\\\hifz-tracker.html\" \"C:\\\\Users\\\\ameen\\\\OneDrive\\\\Desktop\\\\Apps\\\\The Hifz App\\\\index.html\" -Force)",
+      "Bash(python -c ' *)",
+      "Bash(ls \"C:\\\\Users\\\\ameen\\\\OneDrive\\\\Desktop\\\\Apps\\\\The Hifz App\\\\\")",
+      "Bash(pip install *)",
+      "PowerShell(\\(Get-Item \"C:\\\\Users\\\\ameen\\\\OneDrive\\\\Desktop\\\\Apps\\\\The Hifz App\\\\Dawr_Reading_Log.xlsx\"\\).Length / 1KB)",
+      "Bash(cd /tmp)",
+      "Bash(mkdir -p /tmp)",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}

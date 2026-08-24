@@ -37,3 +37,13 @@ npm-debug.log*
 
 # ── Vite / PWA generated icons (reproducible, not source) ────
 client/public/icons/
+
+
+server/public/audio/
+
+# ── Merged in from the old 'The Hifz App' folder ──────────────────
+# Live archive.org S3 credentials — must never reach the public repo.
+Key.txt
+# 2.47 GB of recitations. Also present under server/public/audio, which the
+# server serves locally; both are far too large for git.
+Page Audio Recordings/
