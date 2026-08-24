@@ -14,6 +14,8 @@ export interface AuthRequest extends Request {
     google_id: string | null;
     /** Null for Google accounts. */
     username: string | null;
+    /** Direction through the Mus'haf; null means forward. */
+    memorisation_order: string | null;
     created_at: string;
   };
 }
@@ -34,7 +36,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   try {
     const payload = jwt.verify(token, secret) as { id: number };
     const user = await db
-      .prepare('SELECT id, google_id, name, email, username, avatar_url, role, created_at FROM users WHERE id = ?')
+      .prepare('SELECT id, google_id, name, email, username, avatar_url, role, memorisation_order, created_at FROM users WHERE id = ?')
       .get(payload.id) as AuthRequest['user'] | undefined;
 
     if (!user) {

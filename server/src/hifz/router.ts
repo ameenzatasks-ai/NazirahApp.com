@@ -249,6 +249,13 @@ router.post('/backfill', authenticate, async (req: AuthRequest, res: Response): 
     res.status(400).json({ error: parsed.error.errors[0].message }); return;
   }
 
+  // Recorded before the skip check below, and separately from the backfill
+  // itself: the order decides how the Nazirah tracker is laid out, which stays
+  // true whether or not any pages were marked. A student already tracking
+  // pages still wants the tracker facing the right way.
+  await db.prepare('UPDATE users SET memorisation_order = ? WHERE id = ?')
+    .run(parsed.data.order, req.user!.id);
+
   // Only ever runs on a blank slate. Guarding on this means a repeat call
   // cannot overwrite real progress the student has since recorded.
   const { c } = await stmtCountPages.get(req.user!.id) as { c: number };
@@ -310,10 +317,26 @@ router.get('/audit/student/:studentId', authenticate, async (req: AuthRequest, r
 
 // ── All pages (flat, for grouped colour views) ─────────────────────────────
 
+/**
+ * The tracker is laid out in the direction the student memorises, so the order
+ * travels with the pages rather than being read from whoever is logged in.
+ * That way an ustadh opening a student's tracker sees it facing the same way
+ * the student does, instead of in their own direction.
+ */
+const stmtOrderFor = db.prepare('SELECT memorisation_order FROM users WHERE id = ?');
+
+async function memorisationOrderFor(studentId: number): Promise<string> {
+  const row = await stmtOrderFor.get(studentId) as { memorisation_order: string | null } | undefined;
+  return row?.memorisation_order ?? 'FORWARD';
+}
+
 router.get('/pages', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   await sweepRetest(req.user!.id);
   const rows = await stmtAllPages.all(req.user!.id) as Array<{ page_number: number; status: PageStatus }>;
-  res.json({ pages: rows.map(r => ({ pageNumber: r.page_number, status: r.status })) });
+  res.json({
+    pages: rows.map(r => ({ pageNumber: r.page_number, status: r.status })),
+    memorisationOrder: await memorisationOrderFor(req.user!.id),
+  });
 });
 
 router.get('/pages/student/:studentId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -323,7 +346,10 @@ router.get('/pages/student/:studentId', authenticate, async (req: AuthRequest, r
   if (!await ustadhTeaches(user.id, studentId)) { res.status(403).json({ error: 'Not your student' }); return; }
   await sweepRetest(studentId);
   const rows = await stmtAllPages.all(studentId) as Array<{ page_number: number; status: PageStatus }>;
-  res.json({ pages: rows.map(r => ({ pageNumber: r.page_number, status: r.status })) });
+  res.json({
+    pages: rows.map(r => ({ pageNumber: r.page_number, status: r.status })),
+    memorisationOrder: await memorisationOrderFor(studentId),
+  });
 });
 
 // ── Summary ────────────────────────────────────────────────────────────────

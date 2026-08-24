@@ -368,6 +368,20 @@ export async function runMigrations(): Promise<void> {
     console.log('Dawr cycles migration complete.');
   }
 
+  // ── Memorisation order ──────────────────────────────────────────────────────
+  // Which direction the student works through the Mus'haf, asked at sign-up.
+  // It used to be thrown away once the backfill had used it; the Nazirah
+  // tracker needs it so a student memorising back to front opens on page 604
+  // rather than page 1. Nullable: existing students, and anyone who skipped the
+  // question, simply read forward.
+  const userColsOrder = await db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>;
+  if (userColsOrder.length > 0 && !userColsOrder.some(c => c.name === 'memorisation_order')) {
+    // No CHECK constraint: SQLite's ALTER TABLE cannot add one, and the value
+    // is already constrained by the schema the endpoint validates against.
+    await db.exec('ALTER TABLE users ADD COLUMN memorisation_order TEXT');
+    console.log('Added memorisation_order column to users.');
+  }
+
   // ── Sabaq lines migration ───────────────────────────────────────────────────
   // Add sabaq_lines column to hifz_daily_tasks if not present.
   const hdtColsNow = await db.prepare('PRAGMA table_info(hifz_daily_tasks)').all() as Array<{ name: string }>;

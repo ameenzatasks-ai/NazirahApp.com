@@ -18,7 +18,7 @@ import toast from 'react-hot-toast';
 import { useConfetti } from '../components/Confetti';
 import { hifzApi, type JuzGridPage } from '../api/hifz';
 import type { PageStatus } from '../../../shared/juz-map';
-import { juzForPage, JUZ_MAP } from '../../../shared/juz-map';
+import { juzForPage, JUZ_MAP, type MemorisationOrder } from '../../../shared/juz-map';
 import { PALETTE } from './palette';
 import PageEditor from './PageEditor';
 import Spinner from '../components/Spinner';
@@ -108,16 +108,51 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
   const { burst } = useConfetti();
 
   /** The Juz the selector shows — driven by scroll position, not by filtering. */
+  /** Whether an explicit position was restored, as opposed to falling back. */
+  const hadSavedJuz = useRef(false);
   const [juzNumber, setJuzNumber] = useState<number>(() => {
-    if (initialJuz) return initialJuz;
+    if (initialJuz) { hadSavedJuz.current = true; return initialJuz; }
     try {
       const saved = localStorage.getItem('nazirah-last-juz');
-      return saved ? Math.min(30, Math.max(1, parseInt(saved, 10))) : 1;
+      if (saved) { hadSavedJuz.current = true; return Math.min(30, Math.max(1, parseInt(saved, 10))); }
+      return 1;
     } catch { return 1; }
   });
   const [pages, setPages] = useState<JuzGridPage[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [editorPage, setEditorPage] = useState<JuzGridPage | null>(null);
+
+  /**
+   * The direction this student memorises in, which decides the order the whole
+   * sheet is laid out in. It comes from the pages response rather than the
+   * logged-in user, so an ustadh opening a student's tracker sees it facing the
+   * same way the student does.
+   */
+  const [order, setOrder] = useState<MemorisationOrder>('FORWARD');
+
+  /**
+   * The sheet laid out in the direction the student actually memorises.
+   *
+   *   FORWARD         Juz 1 → 30, pages ascending   →  1 … 604
+   *   BACKWARD        Juz 30 → 1, pages descending  →  604 … 1
+   *   LAST_JUZ_FIRST  Juz 30 → 1, each read from its own first page
+   *
+   * BACKWARD and LAST_JUZ_FIRST both open on Juz 30, but they are not the same
+   * sheet: reading back to front puts page 604 first, whereas last-Juz-first
+   * takes the Juz in reverse and reads each one forwards.
+   *
+   * Declared here, above the effects, because the opening scroll position
+   * depends on which Juz comes first.
+   */
+  const sections = useMemo(() => {
+    const juzList = order === 'FORWARD' ? JUZ_MAP : [...JUZ_MAP].reverse();
+    return juzList.map(juz => {
+      const pageNumbers: number[] = [];
+      for (let p = juz.startPage; p <= juz.endPage; p++) pageNumbers.push(p);
+      if (order === 'BACKWARD') pageNumbers.reverse();
+      return { juz, pageNumbers };
+    });
+  }, [order]);
 
   // ── Page finder ────────────────────────────────────────────
   const [finderInput, setFinderInput] = useState('');
@@ -148,6 +183,7 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
           status: byPage.get(i + 1) ?? null,
         }))
       );
+      setOrder(data.memorisationOrder ?? 'FORWARD');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to load pages');
     } finally {
@@ -177,12 +213,17 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
   }, []);
 
   // Open on the Juz the student was last looking at, without animating there.
+  // With no saved position, open on the FIRST Juz of their order rather than
+  // Juz 1 — for a student memorising backwards, Juz 1 is the far end of the
+  // sheet, so opening there would show them the part they reach last.
   useEffect(() => {
     if (loading || !pages || didInitialScroll.current) return;
     didInitialScroll.current = true;
+    const target = hadSavedJuz.current ? juzNumber : (sections[0]?.juz.juz ?? juzNumber);
+    if (!hadSavedJuz.current) setJuzNumber(target);
     // Wait a frame so the sections have been laid out and offsetTop is real.
-    requestAnimationFrame(() => scrollToJuz(juzNumber, 'auto'));
-  }, [loading, pages, juzNumber, scrollToJuz]);
+    requestAnimationFrame(() => scrollToJuz(target, 'auto'));
+  }, [loading, pages, juzNumber, sections, scrollToJuz]);
 
   /** Keep the selector in step with whatever Juz is under the top edge. */
   const handleScroll = useCallback(() => {
@@ -190,12 +231,17 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
     const container = scrollRef.current;
     if (!container) return;
     const y = container.scrollTop + 4;
-    let current = 1;
+    // Sorted by actual position rather than trusting insertion order. The Juz
+    // are no longer rendered 1→30 — a student memorising backwards sees 30→1 —
+    // and ref callbacks do not promise to run in render order anyway.
+    let current: number | null = null;
+    let bestTop = -Infinity;
     for (const [juz, el] of sectionRefs.current) {
-      if (el.offsetTop <= y) current = juz;
-      else break;
+      const top = el.offsetTop;
+      if (top <= y && top > bestTop) { bestTop = top; current = juz; }
     }
-    setJuzNumber(prev => (prev === current ? prev : current));
+    if (current === null) return;
+    setJuzNumber(prev => (prev === current ? prev : current!));
   }, []);
 
   function flashPage(n: number) {
@@ -272,6 +318,10 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
 
   /* ── Colour counts for the Juz currently in view ─────────── */
   const activeJuz = useMemo(() => JUZ_MAP.find(j => j.juz === juzNumber), [juzNumber]);
+  const activeSection = useMemo(
+    () => sections.find(s => s.juz.juz === juzNumber),
+    [sections, juzNumber],
+  );
 
   const summary = useMemo(() => {
     if (!pages || !activeJuz) return null;
@@ -310,8 +360,12 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
             backgroundColor: 'var(--c-bg-card)',
           }}
         >
-          {Array.from({ length: 30 }, (_, i) => i + 1).map(j => (
-            <option key={j} value={j} dir="rtl">جزء {j} — {JUZ_ARABIC[j]}</option>
+          {/* Listed in the same order as the sheet, so the dropdown reads the
+              way the student's tracker actually runs. */}
+          {sections.map(({ juz }) => (
+            <option key={juz.juz} value={juz.juz} dir="rtl">
+              جزء {juz.juz} — {JUZ_ARABIC[juz.juz]}
+            </option>
           ))}
         </select>
 
@@ -386,7 +440,10 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
             ) : null
           ))}
           <span className="ml-auto" style={{ color: 'var(--c-text-faint)' }}>
-            pp. {activeJuz.startPage}–{activeJuz.endPage}
+            {/* Read in the student's direction, so this agrees with the Juz
+                header directly below it rather than contradicting it. */}
+            pp. {activeSection?.pageNumbers[0] ?? activeJuz.startPage}–
+            {activeSection?.pageNumbers[activeSection.pageNumbers.length - 1] ?? activeJuz.endPage}
           </span>
         </div>
       )}
@@ -405,7 +462,7 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
           </p>
         ) : (
           <>
-            {JUZ_MAP.map(juz => (
+            {sections.map(({ juz, pageNumbers }) => (
               <section
                 key={juz.juz}
                 id={`juz-${juz.juz}`}
@@ -429,7 +486,9 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
                     {JUZ_ARABIC[juz.juz]}
                   </span>
                   <span className="ml-auto text-[10px]" style={{ color: 'var(--c-text-faint)' }}>
-                    pp. {juz.startPage}–{juz.endPage}
+                    {/* Read in the direction the tiles below run, so the label
+                        matches the sheet rather than contradicting it. */}
+                    pp. {pageNumbers[0]}–{pageNumbers[pageNumbers.length - 1]}
                   </span>
                 </div>
 
@@ -437,14 +496,19 @@ export default function JuzGrid({ studentId, initialJuz, onOpenAudit, onSaveNazi
                   className="grid gap-3 mx-auto px-4 pt-4 pb-6"
                   style={{ gridTemplateColumns: 'repeat(5, 1fr)', maxWidth: 360 }}
                 >
-                  {pages.slice(juz.startPage - 1, juz.endPage).map(page => (
-                    <PageTile
-                      key={page.pageNumber}
-                      page={page}
-                      highlighted={highlighted === page.pageNumber}
-                      onTap={() => !readOnly && setEditorPage(page)}
-                    />
-                  ))}
+                  {/* Driven by pageNumbers, not a slice of pages, so the tiles
+                      follow the student's direction rather than always 1→604. */}
+                  {pageNumbers.map(n => {
+                    const page = pages[n - 1];
+                    return (
+                      <PageTile
+                        key={n}
+                        page={page}
+                        highlighted={highlighted === n}
+                        onTap={() => !readOnly && setEditorPage(page)}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             ))}

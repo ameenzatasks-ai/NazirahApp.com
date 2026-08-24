@@ -4,6 +4,8 @@
  * independently (palette tokens, audit timeline, etc.).
  */
 
+import type { MemorisationOrder } from './juz-map';
+
 export type Role = 'ustadh' | 'student';
 
 export interface User {
@@ -17,6 +19,12 @@ export interface User {
   username: string | null;
   avatar_url: string | null;
   role: Role | null;
+  /**
+   * Which direction this student works through the Mus'haf, chosen at sign-up.
+   * Null for ustadhs, for students who skipped the question, and for anyone who
+   * signed up before it was asked — all of whom read forward.
+   */
+  memorisation_order: MemorisationOrder | null;
   created_at: string;
 }
 

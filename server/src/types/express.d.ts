@@ -13,6 +13,8 @@ declare global {
       username: string | null;
       avatar_url: string | null;
       role: string | null;
+      /** Direction through the Mus'haf; null means forward. */
+      memorisation_order: string | null;
       created_at: string;
     }
   }

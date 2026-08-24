@@ -8,7 +8,7 @@ import { authenticate, AuthRequest, issueToken, setTokenCookie } from './middlew
 const router = Router();
 const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN || 'http://localhost:5173').replace(/\/$/, '');
 
-// ── Google OAuth ───────────────────────────────────────────────
+// â”€â”€ Google OAuth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 router.get(
@@ -26,7 +26,7 @@ router.get(
   }
 );
 
-// ── Username/password register ─────────────────────────────────
+// â”€â”€ Username/password register â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
   const parsed = z.object({
     name:     z.string().min(1).max(50).trim(),
@@ -54,7 +54,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     .run(name.trim(), usernameLower, passwordHash);
 
   const user = await db
-    .prepare('SELECT id, google_id, name, email, username, avatar_url, role, created_at FROM users WHERE id = ?')
+    .prepare('SELECT id, google_id, name, email, username, avatar_url, role, memorisation_order, created_at FROM users WHERE id = ?')
     .get(result.lastInsertRowid);
 
   const token = issueToken((user as any).id);
@@ -62,7 +62,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
   res.status(201).json({ user });
 });
 
-// ── Username/password login ─────────────────────────────────────
+// â”€â”€ Username/password login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
   const parsed = z.object({
     username: z.string(),
@@ -88,12 +88,12 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
   res.json({ user: safeUser });
 });
 
-// ── Current user ───────────────────────────────────────────────
+// â”€â”€ Current user â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get('/me', authenticate, (req: AuthRequest, res: Response): void => {
   res.json({ user: req.user });
 });
 
-// ── Set role (first login only) ───────────────────────────────
+// â”€â”€ Set role (first login only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.patch('/role', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   if (user.role) {
@@ -109,13 +109,13 @@ router.patch('/role', authenticate, async (req: AuthRequest, res: Response): Pro
 
   await db.prepare('UPDATE users SET role = ? WHERE id = ?').run(parsed.data.role, user.id);
   const updated = await db
-    .prepare('SELECT id, google_id, name, email, username, avatar_url, role, created_at FROM users WHERE id = ?')
+    .prepare('SELECT id, google_id, name, email, username, avatar_url, role, memorisation_order, created_at FROM users WHERE id = ?')
     .get(user.id);
 
   res.json({ user: updated });
 });
 
-// ── Logout ─────────────────────────────────────────────────────
+// â”€â”€ Logout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.post('/logout', (req: Request, res: Response): void => {
   res.clearCookie('nazirah_token');
   res.json({ success: true });

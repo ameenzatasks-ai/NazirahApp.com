@@ -19,6 +19,16 @@ export interface StatusPage {
   status: PageStatus;
 }
 
+export interface AllPagesResponse {
+  pages: StatusPage[];
+  /**
+   * The direction this student memorises in, so the tracker can be laid out to
+   * match. It travels with the pages rather than coming from the logged-in
+   * user, so an ustadh viewing a student sees the student's direction.
+   */
+  memorisationOrder: MemorisationOrder;
+}
+
 export interface AuditEntry {
   id: number;
   pageNumber: number;
@@ -84,8 +94,8 @@ export const hifzApi = {
     api.post<{ marked: number; skipped: boolean }>('/hifz/backfill', { currentPage, order }),
 
   /** All status'd pages for self (excludes untouched). */
-  allPages: () => api.get<{ pages: StatusPage[] }>('/hifz/pages'),
+  allPages: () => api.get<AllPagesResponse>('/hifz/pages'),
   /** Ustadh: all status'd pages for a student. */
   studentAllPages: (studentId: number) =>
-    api.get<{ pages: StatusPage[] }>(`/hifz/pages/student/${studentId}`),
+    api.get<AllPagesResponse>(`/hifz/pages/student/${studentId}`),
 };
