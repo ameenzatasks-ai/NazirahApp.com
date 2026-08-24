@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dawr Log — Cycle Preview</title>
+<style>
+  body { margin: 0; background: #F5F3EE; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .page { max-width: 900px; margin: 0 auto; padding: 0; background: #F5F3EE; }
+
+  /* Header */
+  .header { background: #0F4C3A; color: #FAF7F0; padding: 14px 20px; display: flex; align-items: center; gap: 10px; }
+  .header-title { font-size: 16px; font-weight: 700; }
+  .header-sub { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; opacity: .55; margin-top: 2px; }
+  .grid-icon { width: 32px; height: 32px; background: rgba(184,134,42,.25); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; margin-left: auto; font-size: 16px; }
+
+  /* Info strip */
+  .strip { background: #EDE9DF; padding: 8px 20px; font-size: 11px; font-weight: 600; color: #6B6050;
+    border-bottom: 1px solid #D9D4C9; }
+
+  /* Description */
+  .desc { padding: 7px 20px; font-size: 11px; color: #8C7B6A; border-bottom: 1px solid #D9D4C9; line-height: 1.5; }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 20px; border-bottom: 1px solid #D9D4C9; }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  .legend-label { font-size: 9px; font-weight: 600; color: #8C7B6A; }
+
+  /* Table wrapper */
+  .table-wrap { overflow-x: auto; padding-bottom: 20px; }
+  table { border-collapse: collapse; }
+
+  /* Column headers */
+  thead th { padding: 4px 2px; text-align: center; vertical-align: bottom; border: 1px solid; }
+  thead th.sticky { position: sticky; left: 0; z-index: 3; background: #F5F3EE; border-bottom: 1px solid #D9D4C9;
+    text-align: left; font-size: 10px; font-weight: 700; color: #8C7B6A; padding: 6px 10px; min-width: 90px; }
+  thead th span { writing-mode: vertical-rl; transform: rotate(180deg); display: block; white-space: nowrap;
+    padding: 4px 0; }
+
+  /* Body cells */
+  .sticky-label { position: sticky; left: 0; z-index: 2; background: #FDFAF5; padding: 3px 10px;
+    font-size: 10px; font-weight: 700; color: #8C7B6A; white-space: nowrap; min-width: 90px;
+    border-right: 2px solid #D9D4C9; }
+  td { min-width: 44px; max-width: 44px; text-align: center; vertical-align: middle; border: 1px solid #D9D4C9; }
+
+  /* Date cell */
+  td.date-cell { height: 28px; font-size: 8px; font-weight: 600; color: #8C7B6A; }
+  td.date-filled { background: rgba(15,76,58,.08); }
+  td.date-empty { background: #EDEBE6; }
+
+  /* Score cell */
+  td.score-cell { height: 36px; font-size: 15px; font-weight: 800; background: #FDFAF5; color: #C4B8A8; }
+
+  /* Cycle separator */
+  tr.cycle-sep td, tr.cycle-sep .sticky-label { border-top: 2px dashed #B8C9A8 !important; }
+  .cycle-label { font-size: 8px; font-weight: 700; color: #0E9C78; letter-spacing: .05em; }
+
+  /* Juz 1 borders */
+  .juz1-left { border-left: 2.5px solid #5FCC78 !important; }
+  .juz2-left { border-left: 2.5px solid #5FA3E5 !important; }
+
+  .callout { background: #0F4C3A; color: #FAF7F0; border-radius: 10px; padding: 12px 16px;
+    margin: 16px 20px; font-size: 12px; line-height: 1.6; }
+  .callout strong { color: #FFD700; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">Dawr Log</div>
+      <div class="header-sub">30 Juz · 4 Quarters each</div>
+    </div>
+    <div class="grid-icon">⊞</div>
+  </div>
+
+  <!-- Info -->
+  <div class="strip">Ahmad Al-Farsi · Your Dawr progress</div>
+
+  <!-- Desc -->
+  <div class="desc">30 Juz × 4 quarters. Each date a Juz is read creates a new cycle row. Your Ustadh enters the score /7.</div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#00B050"></div><span class="legend-label">7 Excellent</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:#92D050"></div><span class="legend-label">6 Very Good</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:#00B0F0"></div><span class="legend-label">5 Average</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FFD400"></div><span class="legend-label">4 Below Avg</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FFC000"></div><span class="legend-label">3 Fail</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:#EE0000"></div><span class="legend-label">2 Bad Fail</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:#C00000"></div><span class="legend-label">1 Abysmal</span></div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="sticky">Student</th>
+
+          <!-- Juz 1 (green) -->
+          <th style="background:#99FFAC;color:#0B3D17;border-color:#5FCC78;border-left:2.5px solid #5FCC78;min-width:44px;max-width:44px;">
+            <span style="font-size:11px;font-weight:800;">Juz 1</span>
+          </th>
+          <th style="background:#99FFAC;color:#0B3D17;border-color:#5FCC78;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q2</span>
+          </th>
+          <th style="background:#99FFAC;color:#0B3D17;border-color:#5FCC78;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q3</span>
+          </th>
+          <th style="background:#99FFAC;color:#0B3D17;border-color:#5FCC78;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q4</span>
+          </th>
+
+          <!-- Juz 2 (blue) -->
+          <th style="background:#99CEFF;color:#0B2E4D;border-color:#5FA3E5;border-left:2.5px solid #5FA3E5;min-width:44px;max-width:44px;">
+            <span style="font-size:11px;font-weight:800;">Juz 2</span>
+          </th>
+          <th style="background:#99CEFF;color:#0B2E4D;border-color:#5FA3E5;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q2</span>
+          </th>
+          <th style="background:#99CEFF;color:#0B2E4D;border-color:#5FA3E5;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q3</span>
+          </th>
+          <th style="background:#99CEFF;color:#0B2E4D;border-color:#5FA3E5;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q4</span>
+          </th>
+
+          <!-- Juz 3 (green) -->
+          <th style="background:#99FFAC;color:#0B3D17;border-color:#5FCC78;border-left:2.5px solid #5FCC78;min-width:44px;max-width:44px;">
+            <span style="font-size:11px;font-weight:800;">Juz 3</span>
+          </th>
+          <th style="background:#99FFAC;color:#0B3D17;border-color:#5FCC78;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q2</span>
+          </th>
+          <th style="background:#99FFAC;color:#0B3D17;border-color:#5FCC78;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q3</span>
+          </th>
+          <th style="background:#99FFAC;color:#0B3D17;border-color:#5FCC78;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q4</span>
+          </th>
+
+          <th style="background:#99CEFF;color:#0B2E4D;border-color:#5FA3E5;border-left:2.5px solid #5FA3E5;min-width:44px;max-width:44px;">
+            <span style="font-size:11px;font-weight:800;">Juz 4</span>
+          </th>
+          <th style="background:#99CEFF;color:#0B2E4D;border-color:#5FA3E5;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q2</span>
+          </th>
+          <th style="background:#99CEFF;color:#0B2E4D;border-color:#5FA3E5;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q3</span>
+          </th>
+          <th style="background:#99CEFF;color:#0B2E4D;border-color:#5FA3E5;min-width:44px;max-width:44px;">
+            <span style="font-size:10px;font-weight:600;">Q4</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- ══ CYCLE 1 ══ -->
+        <tr>
+          <td class="sticky-label">Date</td>
+          <!-- Juz 1: all 4 quarters read on 8 Jun -->
+          <td class="date-cell date-filled juz1-left">8 Jun</td>
+          <td class="date-cell date-filled">8 Jun</td>
+          <td class="date-cell date-filled">8 Jun</td>
+          <td class="date-cell date-filled">8 Jun</td>
+          <!-- Juz 2: Q1 read on 7 Jun, Q2 empty -->
+          <td class="date-cell date-filled juz2-left">7 Jun</td>
+          <td class="date-cell date-empty"></td>
+          <td class="date-cell date-empty"></td>
+          <td class="date-cell date-empty"></td>
+          <!-- Juz 3: nothing -->
+          <td class="date-cell date-empty juz1-left"></td>
+          <td class="date-cell date-empty"></td>
+          <td class="date-cell date-empty"></td>
+          <td class="date-cell date-empty"></td>
+          <!-- Juz 4: nothing -->
+          <td class="date-cell date-empty juz2-left"></td>
+          <td class="date-cell date-empty"></td>
+          <td class="date-cell date-empty"></td>
+          <td class="date-cell date-empty"></td>
+        </tr>
+
+        <tr>
+          <td class="sticky-label">Score /7</td>
+          <!-- Juz 1 scores (Cycle 1) -->
+          <td class="score-cell juz1-left" style="background:#00B050;color:#fff;">6</td>
+          <td class="score-cell" style="background:#92D050;color:#1A3A00;">5</td>
+          <td class="score-cell" style="background:#00B0F0;color:#fff;">5</td>
+          <td class="score-cell" style="background:#00B050;color:#fff;">7</td>
+          <!-- Juz 2 scores -->
+          <td class="score-cell juz2-left" style="background:#FFD400;color:#3A2E00;">4</td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+          <!-- Juz 3 -->
+          <td class="score-cell juz1-left"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+          <!-- Juz 4 -->
+          <td class="score-cell juz2-left"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+        </tr>
+
+        <!-- ══ CYCLE 2 (new cycle — read same Juz 1 again on 9 Jun) ══ -->
+        <tr class="cycle-sep">
+          <td class="sticky-label">Date</td>
+          <!-- Juz 1 again on 9 Jun -->
+          <td class="date-cell date-filled juz1-left" style="border-top:2px dashed #B8C9A8;">9 Jun</td>
+          <td class="date-cell date-filled" style="border-top:2px dashed #B8C9A8;">9 Jun</td>
+          <td class="date-cell date-empty" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty" style="border-top:2px dashed #B8C9A8;"></td>
+          <!-- Juz 2: not re-read yet -->
+          <td class="date-cell date-empty juz2-left" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty juz1-left" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty juz2-left" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty" style="border-top:2px dashed #B8C9A8;"></td>
+          <td class="date-cell date-empty" style="border-top:2px dashed #B8C9A8;"></td>
+        </tr>
+
+        <tr>
+          <td class="sticky-label">Score /7</td>
+          <!-- Juz 1 Cycle 2 scores — Ustadh hasn't scored yet for Q3/Q4 -->
+          <td class="score-cell juz1-left" style="background:#92D050;color:#1A3A00;">6</td>
+          <td class="score-cell" style="background:#00B050;color:#fff;">7</td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+          <!-- Rest empty (Juz 2-4 not re-read) -->
+          <td class="score-cell juz2-left"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell juz1-left"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell juz2-left"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+          <td class="score-cell"></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Callout explanation -->
+  <div class="callout">
+    <strong>Cycle 1 (8 Jun)</strong> — Student read Juz 1 full and got scored.<br>
+    <strong>Cycle 2 (9 Jun)</strong> — Student read Juz 1 again the next day. A new Date + Score row pair appears below.<br>
+    Columns with no re-read stay empty in Cycle 2. Juz 2 (read on 7 Jun) only has one cycle so far.
+  </div>
+
+</div>
+</body>
+</html>

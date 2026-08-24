@@ -47,3 +47,8 @@ Key.txt
 # 2.47 GB of recitations. Also present under server/public/audio, which the
 # server serves locally; both are far too large for git.
 Page Audio Recordings/
+
+# Machine-specific Claude settings and a vendored tool bundle - not project code.
+.claude/settings.local.json
+.claude/skills/
+
