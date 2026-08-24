@@ -25,7 +25,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
   const normalised = phone.trim();
 
   // Store invitation record (idempotent — ignore duplicates)
-  db.prepare(
+  await db.prepare(
     'INSERT OR IGNORE INTO class_invitations (class_id, phone, created_by) VALUES (?, ?, ?)'
   ).run(classId, normalised, user.id);
 

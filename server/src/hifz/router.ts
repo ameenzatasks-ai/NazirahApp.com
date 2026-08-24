@@ -227,10 +227,12 @@ const stmtCountPages = db.prepare(`
 
 const BACKFILL_NOTE = 'Set during sign-up from current page and memorisation order';
 
-const backfillTx = db.transaction((studentId: number, pages: number[]) => {
+const backfillTx = db.transaction(async (studentId: number, pages: number[]) => {
+  // Sequential on purpose: these share one transaction, so issuing them in
+  // parallel would interleave on a single connection rather than go faster.
   for (const page of pages) {
-    stmtUpsertPage.run(studentId, page, 'GOLD', studentId);
-    stmtInsertHistory.run(studentId, page, null, 'GOLD', studentId, BACKFILL_NOTE);
+    await stmtUpsertPage.run(studentId, page, 'GOLD', studentId);
+    await stmtInsertHistory.run(studentId, page, null, 'GOLD', studentId, BACKFILL_NOTE);
   }
 });
 

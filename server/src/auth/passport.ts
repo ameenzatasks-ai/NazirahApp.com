@@ -44,7 +44,7 @@ export function configurePassport(): void {
           const email = profile.emails?.[0]?.value || '';
           const avatarUrl = profile.photos?.[0]?.value || null;
 
-          let user = db
+          let user = await db
             .prepare('SELECT * FROM users WHERE google_id = ?')
             .get(profile.id) as any;
 

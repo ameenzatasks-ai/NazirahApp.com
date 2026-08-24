@@ -185,7 +185,7 @@ router.patch(
     // Identify which cycle to score: use provided loggedDate or fall back to most recent
     let ld: string | null = loggedDate ?? null;
     if (!ld) {
-      const latest = db.prepare(`
+      const latest = await db.prepare(`
         SELECT logged_date FROM hifz_dawr_log
         WHERE student_id = ? AND juz_number = ? AND quarter = ?
           AND (class_id = ? OR (class_id IS NULL AND ? IS NULL))
@@ -199,7 +199,7 @@ router.patch(
       return;
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE hifz_dawr_log
       SET score = ?, score_label = ?, comment = ?, scored_by = ?, scored_at = datetime('now')
       WHERE student_id = ? AND juz_number = ? AND quarter = ? AND logged_date = ?

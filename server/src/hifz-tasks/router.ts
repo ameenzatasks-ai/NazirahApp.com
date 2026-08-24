@@ -108,7 +108,7 @@ router.post(
   '/',
   authenticate,
   requireRole('student'),
-  (req: AuthRequest, res: Response): void => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     const user = req.user!;
     const parsed = SubmitSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -117,7 +117,7 @@ router.post(
     }
     const { date, classId, tasks } = parsed.data;
 
-    const insertAll = db.transaction(() => {
+    const insertAll = db.transaction(async () => {
       // Remove any pre-existing task of the same type for this student/class/date
       // so re-submissions cleanly replace rather than duplicate.
       const stmtDeleteExisting = db.prepare(`
@@ -127,8 +127,10 @@ router.post(
           AND task_date  = ?
           AND (class_id = ? OR (class_id IS NULL AND ? IS NULL))
       `);
+      // Sequential: these share one transaction, so running them in parallel
+      // would interleave on a single connection rather than go faster.
       for (const task of tasks) {
-        stmtDeleteExisting.run(user.id, task.taskType, date, classId ?? null, classId ?? null);
+        await stmtDeleteExisting.run(user.id, task.taskType, date, classId ?? null, classId ?? null);
       }
 
       for (const task of tasks) {
@@ -145,7 +147,7 @@ router.post(
         const spStart =
           task.taskType === 'sabaq_para' ? (task.spStart ?? null) : null;
 
-        stmtInsertTask.run(
+        await stmtInsertTask.run(
           user.id, classId ?? null, date, task.taskType,
           sabaqSurah, sabaqVerse, sabaqLines, spStart, dawrJson,
         );
@@ -153,13 +155,13 @@ router.post(
         // Update dawr_log for each Dawr entry
         if (task.taskType === 'dawr') {
           for (const e of task.dawrEntries) {
-            stmtUpsertDawr.run(user.id, classId ?? null, e.juz, e.quarter, date);
+            await stmtUpsertDawr.run(user.id, classId ?? null, e.juz, e.quarter, date);
           }
         }
       }
     });
 
-    insertAll();
+    await insertAll();
     res.status(201).json({ submitted: tasks.length });
   },
 );
@@ -330,7 +332,7 @@ router.patch(
     }
     const { taskDate, classId, spScore, sabaqScore, tajwidScore, adabScore, comment } = parsed.data;
 
-    stmtUpsertScore.run(
+    await stmtUpsertScore.run(
       studentId, classId ?? null, taskDate,
       spScore ?? null, sabaqScore ?? null, tajwidScore ?? null, adabScore ?? null,
       comment ?? null, req.user!.id,

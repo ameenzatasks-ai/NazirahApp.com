@@ -103,11 +103,11 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<v
 // Access is granted by relationship, not by role: the owning Ustadh, or anyone
 // (student OR ustadh) enrolled in the class. An Ustadh who joins someone else's
 // class is a learner there, so ownership alone must not gate access.
-router.get('/:id', authenticate, (req: AuthRequest, res: Response): void => {
+router.get('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const classId = parseInt(req.params.id, 10);
   const user = req.user!;
 
-  const cls = db.prepare(`
+  const cls = await db.prepare(`
     SELECT c.*, u.name as ustadh_name, u.avatar_url as ustadh_avatar
     FROM classes c
     JOIN users u ON u.id = c.ustadh_id
@@ -116,7 +116,9 @@ router.get('/:id', authenticate, (req: AuthRequest, res: Response): void => {
   if (!cls) { res.status(404).json({ error: 'Class not found' }); return; }
 
   const isOwner = cls.ustadh_id === user.id;
-  const isEnrolled = !!db
+  // Must be awaited: !!promise is always true, which would grant every
+  // authenticated user access to every class.
+  const isEnrolled = !!await db
     .prepare('SELECT id FROM enrolments WHERE class_id = ? AND student_id = ?')
     .get(classId, user.id);
 
@@ -126,7 +128,7 @@ router.get('/:id', authenticate, (req: AuthRequest, res: Response): void => {
 });
 
 // PATCH /api/classes/:id — Ustadh renames their class
-router.patch('/:id', authenticate, requireRole('ustadh'), (req: AuthRequest, res: Response): void => {
+router.patch('/:id', authenticate, requireRole('ustadh'), async (req: AuthRequest, res: Response): Promise<void> => {
   const classId = parseInt(req.params.id, 10);
   const parsed = z.object({ name: z.string().min(1).max(200) }).safeParse(req.body);
   if (!parsed.success) {
@@ -134,11 +136,11 @@ router.patch('/:id', authenticate, requireRole('ustadh'), (req: AuthRequest, res
     return;
   }
 
-  const cls = db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
+  const cls = await db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
   if (!cls) { res.status(404).json({ error: 'Class not found' }); return; }
 
-  db.prepare('UPDATE classes SET name = ? WHERE id = ?').run(parsed.data.name, classId);
-  const updated = db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
+  await db.prepare('UPDATE classes SET name = ? WHERE id = ?').run(parsed.data.name, classId);
+  const updated = await db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
   res.json(updated);
 });
 
@@ -146,20 +148,23 @@ router.patch('/:id', authenticate, requireRole('ustadh'), (req: AuthRequest, res
 // Cascades: removes dependent enrolments and invitations first so FK constraints
 // don't block the parent delete. Student weekly_snapshots / page_reads are
 // student-owned and stay intact (a student may belong to other classes).
-router.delete('/:id', authenticate, requireRole('ustadh'), (req: AuthRequest, res: Response): void => {
+router.delete('/:id', authenticate, requireRole('ustadh'), async (req: AuthRequest, res: Response): Promise<void> => {
   const classId = parseInt(req.params.id, 10);
-  const cls = db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
+  const cls = await db.prepare('SELECT id FROM classes WHERE id = ? AND ustadh_id = ?').get(classId, req.user!.id);
   if (!cls) { res.status(404).json({ error: 'Class not found' }); return; }
 
-  const tx = db.transaction((id: number) => {
-    db.prepare('DELETE FROM hifz_task_scores  WHERE class_id = ?').run(id);
-    db.prepare('DELETE FROM hifz_dawr_log     WHERE class_id = ?').run(id);
-    db.prepare('DELETE FROM hifz_daily_tasks  WHERE class_id = ?').run(id);
-    db.prepare('DELETE FROM class_invitations WHERE class_id = ?').run(id);
-    db.prepare('DELETE FROM enrolments        WHERE class_id = ?').run(id);
-    db.prepare('DELETE FROM classes           WHERE id = ?').run(id);
+  // Ordered deletes inside one transaction: children first so the foreign keys
+  // on the parent row are satisfied. Each must be awaited — un-awaited, they
+  // would fire in an undefined order and the parent delete could run first.
+  const tx = db.transaction(async (id: number) => {
+    await db.prepare('DELETE FROM hifz_task_scores  WHERE class_id = ?').run(id);
+    await db.prepare('DELETE FROM hifz_dawr_log     WHERE class_id = ?').run(id);
+    await db.prepare('DELETE FROM hifz_daily_tasks  WHERE class_id = ?').run(id);
+    await db.prepare('DELETE FROM class_invitations WHERE class_id = ?').run(id);
+    await db.prepare('DELETE FROM enrolments        WHERE class_id = ?').run(id);
+    await db.prepare('DELETE FROM classes           WHERE id = ?').run(id);
   });
-  tx(classId);
+  await tx(classId);
 
   res.json({ message: 'Class deleted' });
 });
@@ -209,14 +214,11 @@ router.get('/:id/students', authenticate, requireRole('ustadh'), async (req: Aut
     `)
     .all(classId) as Array<{ id: number; name: string; email: string; avatar_url: string | null; joined_at: string }>;
 
-  const result = students.map((s) => {
-    const snap = db
-      .prepare('SELECT * FROM weekly_snapshots WHERE student_id = ? ORDER BY week_number DESC LIMIT 1')
-      .get(s.id);
-    return { ...s, latest_snapshot: snap || null };
-  });
-
-  res.json(result);
+  // Each student used to carry a `latest_snapshot` read from weekly_snapshots.
+  // That table is dropped by the migrations, so the query could only ever fail
+  // — this endpoint had been answering "Internal server error" ever since, and
+  // no caller read the field. Removed rather than resurrected.
+  res.json(students);
 });
 
 // GET /api/classes/:id/students/:studentId/pages

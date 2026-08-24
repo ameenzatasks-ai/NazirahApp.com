@@ -1,4 +1,10 @@
 import 'dotenv/config';
+// Express 4 does not catch rejections from async route handlers: an unhandled
+// rejection kills the Node process, so ONE failing query took the entire site
+// down rather than returning 500 for the one request that caused it. This
+// patches async handler rejections through to the error middleware below.
+// (Express 5 does this natively; when this upgrades, the import can go.)
+import 'express-async-errors';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -139,6 +145,19 @@ if (process.env.NODE_ENV === 'production') {
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err);
   res.status(500).json({ error: 'Internal server error' });
+});
+
+// ── Last line of defence ───────────────────────────────────────
+// Anything rejecting outside a request — a background sweep, a stray promise —
+// would otherwise take the process down with it, and Node's default really is
+// to exit. For a server a class of students depends on, one broken code path
+// should cost that one request, not everybody's session. Logged loudly so a
+// swallowed fault is still visible rather than silently ignored.
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION (server kept alive):', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION (server kept alive):', err);
 });
 
 // ── Start ──────────────────────────────────────────────────────

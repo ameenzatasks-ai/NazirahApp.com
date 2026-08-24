@@ -22,7 +22,7 @@ router.get('/', authenticate, requireRole('student'), async (req: AuthRequest, r
 });
 
 // PUT /api/pages/:pageNumber — mark page as listened (idempotent)
-router.put('/:pageNumber', authenticate, requireRole('student'), (req: AuthRequest, res: Response): void => {
+router.put('/:pageNumber', authenticate, requireRole('student'), async (req: AuthRequest, res: Response): Promise<void> => {
   const pageNumber = parseInt(req.params.pageNumber, 10);
   if (isNaN(pageNumber) || pageNumber < 1 || pageNumber > 604) {
     res.status(400).json({ error: 'Page number must be 1–604' });
@@ -30,7 +30,7 @@ router.put('/:pageNumber', authenticate, requireRole('student'), (req: AuthReque
   }
 
   const now = new Date().toISOString();
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO page_reads (student_id, page_number, read_count, last_read_at, updated_at)
     VALUES (?, ?, 1, ?, ?)
     ON CONFLICT(student_id, page_number) DO UPDATE SET
@@ -43,14 +43,14 @@ router.put('/:pageNumber', authenticate, requireRole('student'), (req: AuthReque
 });
 
 // DELETE /api/pages/:pageNumber — unmark page as listened
-router.delete('/:pageNumber', authenticate, requireRole('student'), (req: AuthRequest, res: Response): void => {
+router.delete('/:pageNumber', authenticate, requireRole('student'), async (req: AuthRequest, res: Response): Promise<void> => {
   const pageNumber = parseInt(req.params.pageNumber, 10);
   if (isNaN(pageNumber) || pageNumber < 1 || pageNumber > 604) {
     res.status(400).json({ error: 'Page number must be 1–604' });
     return;
   }
 
-  db.prepare('DELETE FROM page_reads WHERE student_id = ? AND page_number = ?')
+  await db.prepare('DELETE FROM page_reads WHERE student_id = ? AND page_number = ?')
     .run(req.user!.id, pageNumber);
 
   res.json({ pageNumber, listened: false });
